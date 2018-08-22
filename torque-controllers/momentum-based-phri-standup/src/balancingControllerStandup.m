@@ -292,23 +292,33 @@ function [tauModel, Sigma, NA, f_HDot, ...
     constraintMatrixRightContact  = ConstraintsMatrix * blkdiag(w_R_r_contact',w_R_r_contact');
     ConstraintsMatrix2FeetOrLegs  = blkdiag(constraintMatrixLeftContact,constraintMatrixRightContact);
     bVectorConstraints2FeetOrLegs = [bVectorConstraints;bVectorConstraints];
+    
+    tauModel= zeros(ROBOT_DOF,1);
+    Sigma   = zeros(ROBOT_DOF,12);
+    HDotDes = zeros(6,1)
+    V       = 0;
+    if ~STANDUP_WITH_HUMAN_TORQUE %% Without considering human joint torques
         
-    % Terms used in Eq. 0)
-    tauModel  = Pinv_JcMinvSt*(JcMinv*h - Jc_nuDot) + nullJcMinvSt*(h(7:end) - Mbj'/Mb*h(1:6) ...
-                               -impedances*NLMbar*qjTilde -dampings*NLMbar*qjDot);
-    
-    Sigma     = -(Pinv_JcMinvSt*JcMinvJct + nullJcMinvSt*JBar);
-    
-    % Desired rate-of-change of the robot momentum
-    HDotDes   = [m*xDDcomStar ;
-                 -Gain.KD_AngularMomentum*H(4:end)-Gain.KP_AngularMomentum*intHw] +correctionFromSupportForce;
-    
-    % computing Lyapunov function
-    int_H_tilde_times_gain = [m * gainsPCOM .* (xCoM - desired_x_dx_ddx_CoM(:,1));
-                              Gain.KP_AngularMomentum .* intHw];
-    
-    V = 0.5 * transpose(H_error) * H_error;
-    V = V + 0.5 * transpose(int_H_tilde_times_gain) * int_H_tilde_times_gain;
+        % Terms used in Eq. 0)
+        tauModel  = Pinv_JcMinvSt*(JcMinv*h - Jc_nuDot) + nullJcMinvSt*(h(7:end) - Mbj'/Mb*h(1:6) ...
+            -impedances*NLMbar*qjTilde -dampings*NLMbar*qjDot);
+        
+        Sigma     = -(Pinv_JcMinvSt*JcMinvJct + nullJcMinvSt*JBar);
+        
+        % Desired rate-of-change of the robot momentum
+        HDotDes   = [m*xDDcomStar ;
+            -Gain.KD_AngularMomentum*H(4:end)-Gain.KP_AngularMomentum*intHw] +correctionFromSupportForce;
+        
+        % computing Lyapunov function
+        int_H_tilde_times_gain = [m * gainsPCOM .* (xCoM - desired_x_dx_ddx_CoM(:,1));
+            Gain.KP_AngularMomentum .* intHw];
+        
+        V = 0.5 * transpose(H_error) * H_error;
+        V = V + 0.5 * transpose(int_H_tilde_times_gain) * int_H_tilde_times_gain;
+        
+    elseif STANDUP_WITH_HUMAN_TORQUE %% with human joint torques
+        %%TODO: This is where AnDy control laws is implemented
+    end
     
     % Contact wrenches realizing the desired rate-of-change of the robot
     % momentum HDotDes when standing on two feet. Note that f_HDot is
