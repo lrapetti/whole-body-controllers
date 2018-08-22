@@ -20,7 +20,7 @@ function [tauModel, Sigma, NA, f_HDot, ...
           HessianMatrixQP2FeetOrLegs, gradientQP2FeetOrLegs, ConstraintsMatrixQP2FeetOrLegs, bVectorConstraintsQp2FeetOrLegs, ...
           errorCoM, f_noQP, correctionFromSupportForce, H_error, V, alpha, fArms, phri_human_feet_wrench, phri_robot_feet_wrench] =  ...
               balancingControllerStandup(constraints, ROBOT_DOF_FOR_SIMULINK, HUMAN_DOF_FOR_SIMULINK, ConstraintsMatrix, bVectorConstraints, ...
-                                         qj, qjDes, nu, M, h, H, intHw, w_H_l_contact, w_H_r_contact, JL, JR, dJL_nu, dJR_nu, xCoM, J_CoM, desired_x_dx_ddx_CoM, ...
+                                         qj, qjDes, nu, M, h, H, intHw, w_H_l_contact, w_H_r_contact, JL, JR, dJL_nu, dJR_nu, xCoM, J_CoM, desired_x_dx_ddx_CoM, CMM, ...
                                          gainsPCOM, gainsDCOM, impedances, Reg, Gain, w_H_lArm, w_H_rArm, JLArm, JRArm, dJLArm_nu, dJRArm_nu,...
                                          LArmWrench, RArmWrench, STANDUP_WITH_HUMAN_FORCE, MEASURED_FT, STANDUP_WITH_HUMAN_TORQUE, ...
                                          human_w_H_b, human_qj, human_nu_b, human_dqj, human_M, human_h, human_torques, ...
@@ -295,23 +295,23 @@ function [tauModel, Sigma, NA, f_HDot, ...
     
     tauModel= zeros(ROBOT_DOF,1);
     Sigma   = zeros(ROBOT_DOF,12);
-    HDotDes = zeros(6,1)
+    HDotDes = zeros(6,1);
     V       = 0;
     if ~STANDUP_WITH_HUMAN_TORQUE %% Without considering human joint torques
         
         % Terms used in Eq. 0)
         tauModel  = Pinv_JcMinvSt*(JcMinv*h - Jc_nuDot) + nullJcMinvSt*(h(7:end) - Mbj'/Mb*h(1:6) ...
-            -impedances*NLMbar*qjTilde -dampings*NLMbar*qjDot);
+                                  -impedances*NLMbar*qjTilde -dampings*NLMbar*qjDot);
         
         Sigma     = -(Pinv_JcMinvSt*JcMinvJct + nullJcMinvSt*JBar);
         
         % Desired rate-of-change of the robot momentum
         HDotDes   = [m*xDDcomStar ;
-            -Gain.KD_AngularMomentum*H(4:end)-Gain.KP_AngularMomentum*intHw] +correctionFromSupportForce;
+                     -Gain.KD_AngularMomentum*H(4:end)-Gain.KP_AngularMomentum*intHw] +correctionFromSupportForce;
         
         % computing Lyapunov function
         int_H_tilde_times_gain = [m * gainsPCOM .* (xCoM - desired_x_dx_ddx_CoM(:,1));
-            Gain.KP_AngularMomentum .* intHw];
+                                  Gain.KP_AngularMomentum .* intHw];
         
         V = 0.5 * transpose(H_error) * H_error;
         V = V + 0.5 * transpose(int_H_tilde_times_gain) * int_H_tilde_times_gain;
