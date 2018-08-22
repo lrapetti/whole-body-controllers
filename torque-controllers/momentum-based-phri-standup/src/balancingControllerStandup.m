@@ -22,7 +22,7 @@ function [tauModel, Sigma, NA, f_HDot, ...
               balancingControllerStandup(constraints, ROBOT_DOF_FOR_SIMULINK, HUMAN_DOF_FOR_SIMULINK, ConstraintsMatrix, bVectorConstraints, ...
                                          qj, qjDes, nu, M, h, H, intHw, w_H_l_contact, w_H_r_contact, JL, JR, dJL_nu, dJR_nu, xCoM, J_CoM, desired_x_dx_ddx_CoM, ...
                                          gainsPCOM, gainsDCOM, impedances, Reg, Gain, w_H_lArm, w_H_rArm, JLArm, JRArm, dJLArm_nu, dJRArm_nu,...
-                                         LArmWrench, RArmWrench, STANDUP_WITH_HUMAN_FORCE,STANDUP_WITH_HUMAN_TORQUE, ...
+                                         LArmWrench, RArmWrench, STANDUP_WITH_HUMAN_FORCE, MEASURED_FT, STANDUP_WITH_HUMAN_TORQUE, ...
                                          human_w_H_b, human_qj, human_nu_b, human_dqj, human_M, human_h, human_torques, ...
                                          human_w_H_l_contact, human_w_H_r_contact, human_JL, human_JR, human_dJL_nu, human_dJR_nu,...
                                          human_w_H_lArm_contact, human_w_H_rArm_contact, human_JLArm, human_JRArm, human_dJLArm_nu, human_dJRArm_nu,...
@@ -183,11 +183,11 @@ function [tauModel, Sigma, NA, f_HDot, ...
     phri_human_feet_wrench = zeros(12,1);
     phri_robot_feet_wrench = zeros(12,1);
     
-    if STANDUP_WITH_HUMAN_FORCE
+    if (STANDUP_WITH_HUMAN_FORCE && MEASURED_FT)
         
         alpha         = (transpose(H_error)*fsupport)/(norm(H_error)+Reg.norm_tolerance);
     
-    elseif STANDUP_WITH_HUMAN_TORQUE
+    elseif (STANDUP_WITH_HUMAN_FORCE && ~MEASURED_FT)
         
         Big_M          = [human_M,                       zeros(6+HUMAN_DOF,6+ROBOT_DOF);
                           zeros(6+ROBOT_DOF,6+HUMAN_DOF),    M];
@@ -292,21 +292,21 @@ function [tauModel, Sigma, NA, f_HDot, ...
     constraintMatrixRightContact  = ConstraintsMatrix * blkdiag(w_R_r_contact',w_R_r_contact');
     ConstraintsMatrix2FeetOrLegs  = blkdiag(constraintMatrixLeftContact,constraintMatrixRightContact);
     bVectorConstraints2FeetOrLegs = [bVectorConstraints;bVectorConstraints];
-    
-     % Terms used in Eq. 0)
+        
+    % Terms used in Eq. 0)
     tauModel  = Pinv_JcMinvSt*(JcMinv*h - Jc_nuDot) + nullJcMinvSt*(h(7:end) - Mbj'/Mb*h(1:6) ...
-               -impedances*NLMbar*qjTilde -dampings*NLMbar*qjDot);
+                               -impedances*NLMbar*qjTilde -dampings*NLMbar*qjDot);
     
     Sigma     = -(Pinv_JcMinvSt*JcMinvJct + nullJcMinvSt*JBar);
     
     % Desired rate-of-change of the robot momentum
     HDotDes   = [m*xDDcomStar ;
-                -Gain.KD_AngularMomentum*H(4:end)-Gain.KP_AngularMomentum*intHw] +correctionFromSupportForce;
-
+                 -Gain.KD_AngularMomentum*H(4:end)-Gain.KP_AngularMomentum*intHw] +correctionFromSupportForce;
+    
     % computing Lyapunov function
     int_H_tilde_times_gain = [m * gainsPCOM .* (xCoM - desired_x_dx_ddx_CoM(:,1));
                               Gain.KP_AngularMomentum .* intHw];
-                          
+    
     V = 0.5 * transpose(H_error) * H_error;
     V = V + 0.5 * transpose(int_H_tilde_times_gain) * int_H_tilde_times_gain;
     
