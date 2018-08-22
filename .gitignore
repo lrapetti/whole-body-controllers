@@ -32,6 +32,9 @@ slprj/
 # Simulink autosave
 *.autosave
 
+# Simulink slxc
+*.slxc
+
 ## Sublime Text: ------------------------------------
 ##
 ## Ignore projects and workspaces.
