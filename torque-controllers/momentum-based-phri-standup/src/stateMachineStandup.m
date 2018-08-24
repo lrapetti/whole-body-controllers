@@ -28,7 +28,7 @@ function  [w_H_b, constraints, CoM_des, qj_des, impedances, KPCoM, KDCoM, curren
         % after tBalancing time, start moving CoM forward. If
         % Config.STANDUP_WITH_HUMAN_FORCE is enbabled, the robot waits for external 
         % help before lifting up.
-        if (STANDUP_WITH_HUMAN_FORCE && MEASURED_FT) % Using measured FT values at hands from WBD
+        if ((STANDUP_WITH_HUMAN_FORCE && MEASURED_FT) || STANDUP_WITH_HUMAN_TORQUE) % Using measured FT values at hands from WBD
             if t > Sm.tBalancing && wrench_rightHand(1) > Sm.wrench_thresholdContactRHand(state) && wrench_leftHand(1) > Sm.wrench_thresholdContactLHand(state)
                 state = 2;   
                 tSwitch = t;

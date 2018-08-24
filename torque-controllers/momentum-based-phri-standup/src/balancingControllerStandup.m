@@ -199,7 +199,7 @@ function [tauModel, Sigma, NA, f_HDot, ...
         Big_M          = [human_M,                       zeros(6+HUMAN_DOF,6+ROBOT_DOF);
                           zeros(6+ROBOT_DOF,6+HUMAN_DOF),    M];
                   
-        Big_Minv       = inv(Big_M);
+        Big_Minv       = (eye(size(Big_M,1)))/(Big_M + 0.000001*eye(size(Big_M,1)));
         
         Big_h          = [human_h; h];
     
@@ -307,7 +307,7 @@ function [tauModel, Sigma, NA, f_HDot, ...
     tauModel= zeros(ROBOT_DOF,1);
     Sigma   = zeros(ROBOT_DOF,12);
     HDotDes = zeros(6,1);
-    V       = 0;
+    int_H_tilde_times_gain = zeros(6,1);
     correctionFromSupportTorque = zeros(6,1);
     if ~STANDUP_WITH_HUMAN_TORQUE %% Without considering human joint torques
         
@@ -320,39 +320,45 @@ function [tauModel, Sigma, NA, f_HDot, ...
         % Desired rate-of-change of the robot momentum
         HDotDes   = [m*xDDcomStar ;
                      -Gain.KD_AngularMomentum*H(4:end)-Gain.KP_AngularMomentum*intHw] +correctionFromSupportForce;
+         
+        int_H_tilde_times_gain = [m * gainsPCOM .* (xCoM - desired_x_dx_ddx_CoM(:,1));
+                                  Gain.KP_AngularMomentum .* intHw];
         
     elseif STANDUP_WITH_HUMAN_TORQUE %% with human joint torques
         %%TODO: This is where AnDy control laws is implemented
         JcmmMinv = Jcmm/M;
         JcmmMinvJt = JcmmMinv*transpose(Jc);
-        Delta = JcmmMinv*St + JcmmMinvJt*Big_G2(1:12,:);
+        Delta = JcmmMinv*St + JcmmMinvJt*-Big_G2(1:12,:);
         Pinv_Delta = pinvDamped(Delta,Reg.pinvDamp);
-
-        Lambda = JcmmMinv*transpose(Jc)*Big_G3(1:12,:);
         
-        Omega = JcmmMinvJt*Big_G1(1:12,:);
+        nullDelta    = eye(ROBOT_DOF) - Pinv_Delta*Delta;
+
+        Lambda = JcmmMinv*transpose(Jc)*-Big_G3(1:12,:);
+        
+        Omega = JcmmMinvJt*-Big_G1(1:12,:);
         phri_torque_alpha    = (transpose(H_error)*Omega*human_torques)/(norm(H_error)+Reg.norm_tolerance);
         alpha = phri_torque_alpha;
         if phri_torque_alpha >= 0 && state < 4
-            %correctionFromSupportTorque = phri_torque_alpha*H_errParallel;
+            correctionFromSupportTorque = phri_torque_alpha*H_errParallel;
         end
         
         % Desired rate-of-change of the robot momentum
         HDotDes   = [m*xDDcomStar ;
                      -Gain.KD_AngularMomentum*H(4:end)-Gain.KP_AngularMomentum*intHw];
         
-        % TODO: Some terms are missing here
-        tauModel  = -Pinv_Delta*(Lambda + correctionFromSupportTorque) + nullJcMinvSt*(h(7:end) - Mbj'/Mb*h(1:6) ...
-                                  -impedances*NLMbar*qjTilde -dampings*NLMbar*qjDot);
+        % TODO: May be gains are not correct here! 
+        int_H_tilde_times_gain = [m * gainsPCOM .* (xCoM - desired_x_dx_ddx_CoM(:,1));
+                                  Gain.KP_AngularMomentum .* intHw];
         
-        Sigma = -(Pinv_Delta*JcmmMinv*transpose(JcArm) + nullJcMinvSt*JBar);
+        % TODO: Some terms are missing here - Using wrong nullspace
+        tauModel  = -Pinv_Delta*(Lambda + correctionFromSupportTorque + gravityWrench + H_error - HDotDes + int_H_tilde_times_gain) + nullDelta*(h(7:end) - Mbj'/Mb*h(1:6) ...
+                                 -impedances*NLMbar*qjTilde -dampings*NLMbar*qjDot);
+        
+        Sigma = -(Pinv_Delta*JcmmMinv*transpose(JcArm) + nullDelta*JBar);
         
     end
     
     % computing Lyapunov function
-    int_H_tilde_times_gain = [m * gainsPCOM .* (xCoM - desired_x_dx_ddx_CoM(:,1));
-                              Gain.KP_AngularMomentum .* intHw];
-    
     V = 0.5 * transpose(H_error) * H_error;
     V = V + 0.5 * transpose(int_H_tilde_times_gain) * int_H_tilde_times_gain;
     
