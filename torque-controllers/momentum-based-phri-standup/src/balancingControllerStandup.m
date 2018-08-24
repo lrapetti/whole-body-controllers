@@ -18,9 +18,9 @@
 function [tauModel, Sigma, NA, f_HDot, ...
           HessianMatrixQP1Foot, gradientQP1Foot, ConstraintsMatrixQP1Foot, bVectorConstraintsQp1Foot, ...
           HessianMatrixQP2FeetOrLegs, gradientQP2FeetOrLegs, ConstraintsMatrixQP2FeetOrLegs, bVectorConstraintsQp2FeetOrLegs, ...
-          errorCoM, f_noQP, correctionFromSupportForce, H_error, V, alpha, fArms, phri_human_feet_wrench, phri_robot_feet_wrench] =  ...
+          errorCoM, f_noQP, correctionFromSupportForce, H_error, V, alpha, fArms, phri_human_feet_wrench, phri_robot_feet_wrench, correctionFromSupportTorque] =  ...
               balancingControllerStandup(constraints, ROBOT_DOF_FOR_SIMULINK, HUMAN_DOF_FOR_SIMULINK, ConstraintsMatrix, bVectorConstraints, ...
-                                         qj, qjDes, nu, M, h, H, intHw, w_H_l_contact, w_H_r_contact, JL, JR, dJL_nu, dJR_nu, xCoM, J_CoM, desired_x_dx_ddx_CoM, CMM, ...
+                                         qj, qjDes, nu, M, h, H, intHw, w_H_l_contact, w_H_r_contact, JL, JR, dJL_nu, dJR_nu, xCoM, J_CoM, desired_x_dx_ddx_CoM, Jcmm, ...
                                          gainsPCOM, gainsDCOM, impedances, Reg, Gain, w_H_lArm, w_H_rArm, JLArm, JRArm, dJLArm_nu, dJRArm_nu,...
                                          LArmWrench, RArmWrench, STANDUP_WITH_HUMAN_FORCE, MEASURED_FT, STANDUP_WITH_HUMAN_TORQUE, ...
                                          human_w_H_b, human_qj, human_nu_b, human_dqj, human_M, human_h, human_torques, ...
@@ -142,6 +142,10 @@ function [tauModel, Sigma, NA, f_HDot, ...
     Jc              = [JL*constraints(1);      
                        JR*constraints(2)];
                    
+    % Time varying contact jacobian
+    JcArm           = [JLArm;      
+                       JRArm];
+                   
     % Time varying dot(J)*nu
     Jc_nuDot        = [dJL_nu*constraints(1) ;      
                        dJR_nu*constraints(2)];
@@ -182,12 +186,15 @@ function [tauModel, Sigma, NA, f_HDot, ...
     
     phri_human_feet_wrench = zeros(12,1);
     phri_robot_feet_wrench = zeros(12,1);
+    Big_G1 = zeros(36,HUMAN_DOF);
+    Big_G2 = zeros(36,ROBOT_DOF);
+    Big_G3 = zeros(36,1);
     
     if (STANDUP_WITH_HUMAN_FORCE && MEASURED_FT)
         
         alpha         = (transpose(H_error)*fsupport)/(norm(H_error)+Reg.norm_tolerance);
     
-    elseif (STANDUP_WITH_HUMAN_FORCE && ~MEASURED_FT)
+    elseif ((STANDUP_WITH_HUMAN_FORCE && ~MEASURED_FT) || STANDUP_WITH_HUMAN_TORQUE)
         
         Big_M          = [human_M,                       zeros(6+HUMAN_DOF,6+ROBOT_DOF);
                           zeros(6+ROBOT_DOF,6+HUMAN_DOF),    M];
@@ -225,32 +232,36 @@ function [tauModel, Sigma, NA, f_HDot, ...
         Big_Gamma      = Big_Q*Big_Minv*Big_Jct;
         Big_Gammainv   = (eye(size(Big_Gamma,1)))/(Big_Gamma + 0.000001*eye(size(Big_Gamma,1)));
         
-        Big_G1G2        = - Big_Gammainv*Big_Q*Big_Minv*Big_St;
+        Big_G1        = - Big_Gammainv*Big_Q*Big_Minv*[human_St; zeros(6+ROBOT_DOF,HUMAN_DOF)] ;
+        Big_G2        = - Big_Gammainv*Big_Q*Big_Minv*[zeros(6+HUMAN_DOF,ROBOT_DOF); St];
+        Big_G3        =   Big_Gammainv*(Big_Q*Big_Minv*Big_h - Big_PV);
+        
+        if(STANDUP_WITH_HUMAN_FORCE && ~MEASURED_FT)
+            
+            combined_wrench    = [Big_G1 Big_G2]*combined_torques + Big_G3;
+            
+            phri_human_feet_wrench   = [combined_wrench(1:6,:);
+                                        combined_wrench(7:12,:)];
+            
+            phri_robot_feet_wrench   = [combined_wrench(13:18,:);
+                                        combined_wrench(19:24,:)];
+            
+            %% The interaction wrench acting on the robot is equal and opposite to that of the computed wrench, hence -ve sign
+            phri_fArms =   -[combined_wrench(25:30,:);
+                             combined_wrench(31:end,:)];
+            
+            fArms           = phri_fArms;
+            
+            phri_fsupport   = A_arms * phri_fArms;
+            
+            phri_alpha    = (transpose(H_error)*phri_fsupport)/(norm(H_error)+Reg.norm_tolerance);
+            alpha         = phri_alpha;
+            
+        end
     
-        Big_G3          = Big_Gammainv*(Big_Q*Big_Minv*Big_h - Big_PV);
-    
-        combined_wrench    = Big_G1G2*combined_torques + Big_G3;
-        
-        phri_human_feet_wrench   = [combined_wrench(1:6,:);
-                                    combined_wrench(7:12,:)];
-                       
-        phri_robot_feet_wrench   = [combined_wrench(13:18,:);
-                                    combined_wrench(19:24,:)];
-    
-        %% The interaction wrench acting on the robot is equal and opposite to that of the computed wrench, hence -ve sign
-        phri_fArms =   -[combined_wrench(25:30,:);
-                         combined_wrench(31:end,:)];
-        
-        fArms           = phri_fArms;
-
-        phri_fsupport   = A_arms * phri_fArms;
-        
-        phri_alpha    = (transpose(H_error)*phri_fsupport)/(norm(H_error)+Reg.norm_tolerance);
-        alpha         = phri_alpha;
-        
     end
     
-    if alpha <= 0 && state < 4
+    if alpha <= 0 && state < 4 && STANDUP_WITH_HUMAN_FORCE
         
         correctionFromSupportForce = alpha*H_errParallel;
         
@@ -297,6 +308,7 @@ function [tauModel, Sigma, NA, f_HDot, ...
     Sigma   = zeros(ROBOT_DOF,12);
     HDotDes = zeros(6,1);
     V       = 0;
+    correctionFromSupportTorque = zeros(6,1);
     if ~STANDUP_WITH_HUMAN_TORQUE %% Without considering human joint torques
         
         % Terms used in Eq. 0)
@@ -309,16 +321,40 @@ function [tauModel, Sigma, NA, f_HDot, ...
         HDotDes   = [m*xDDcomStar ;
                      -Gain.KD_AngularMomentum*H(4:end)-Gain.KP_AngularMomentum*intHw] +correctionFromSupportForce;
         
-        % computing Lyapunov function
-        int_H_tilde_times_gain = [m * gainsPCOM .* (xCoM - desired_x_dx_ddx_CoM(:,1));
-                                  Gain.KP_AngularMomentum .* intHw];
-        
-        V = 0.5 * transpose(H_error) * H_error;
-        V = V + 0.5 * transpose(int_H_tilde_times_gain) * int_H_tilde_times_gain;
-        
     elseif STANDUP_WITH_HUMAN_TORQUE %% with human joint torques
         %%TODO: This is where AnDy control laws is implemented
+        JcmmMinv = Jcmm/M;
+        JcmmMinvJt = JcmmMinv*transpose(Jc);
+        Delta = JcmmMinv*St + JcmmMinvJt*Big_G2(1:12,:);
+        Pinv_Delta = pinvDamped(Delta,Reg.pinvDamp);
+
+        Lambda = JcmmMinv*transpose(Jc)*Big_G3(1:12,:);
+        
+        Omega = JcmmMinvJt*Big_G1(1:12,:);
+        phri_torque_alpha    = (transpose(H_error)*Omega*human_torques)/(norm(H_error)+Reg.norm_tolerance);
+        alpha = phri_torque_alpha;
+        if phri_torque_alpha >= 0 && state < 4
+            %correctionFromSupportTorque = phri_torque_alpha*H_errParallel;
+        end
+        
+        % Desired rate-of-change of the robot momentum
+        HDotDes   = [m*xDDcomStar ;
+                     -Gain.KD_AngularMomentum*H(4:end)-Gain.KP_AngularMomentum*intHw];
+        
+        % TODO: Some terms are missing here
+        tauModel  = -Pinv_Delta*(Lambda + correctionFromSupportTorque) + nullJcMinvSt*(h(7:end) - Mbj'/Mb*h(1:6) ...
+                                  -impedances*NLMbar*qjTilde -dampings*NLMbar*qjDot);
+        
+        Sigma = -(Pinv_Delta*JcmmMinv*transpose(JcArm) + nullJcMinvSt*JBar);
+        
     end
+    
+    % computing Lyapunov function
+    int_H_tilde_times_gain = [m * gainsPCOM .* (xCoM - desired_x_dx_ddx_CoM(:,1));
+                              Gain.KP_AngularMomentum .* intHw];
+    
+    V = 0.5 * transpose(H_error) * H_error;
+    V = V + 0.5 * transpose(int_H_tilde_times_gain) * int_H_tilde_times_gain;
     
     % Contact wrenches realizing the desired rate-of-change of the robot
     % momentum HDotDes when standing on two feet. Note that f_HDot is
