@@ -334,7 +334,7 @@ function [tauModel, Sigma, NA, f_HDot, ...
         JcmmMinv = Jcmm/M;
         JcmmMinvJcArmt = JcmmMinv*transpose(JcArm);
         Delta = JcmmMinv*St + JcmmMinvJcArmt*-Big_G2(1:12,:);
-        Pinv_Delta = pinvDamped(Delta,Reg.pinvDamp);
+        Pinv_Delta = pinvDamped(Delta,1);
         
         nullDelta    = eye(ROBOT_DOF) - Pinv_Delta*Delta;
 
