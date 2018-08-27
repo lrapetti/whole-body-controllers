@@ -34,9 +34,9 @@ Frames.RIGHT_HAND        = 'r_hand_dh_frame';
 % when Config.STANDUP_WITH_HUMAN is setted to TRUE, the robot will be aware 
 % of the external forces at the arms provided by the human and it will use
 % also them for lifting up.
-Config.STANDUP_WITH_HUMAN_FORCE           = true;
+Config.STANDUP_WITH_HUMAN_FORCE           = false;
 Config.MEASURED_FT                        = false;
-Config.STANDUP_WITH_HUMAN_TORQUE          = false;
+Config.STANDUP_WITH_HUMAN_TORQUE          = true;
 
 %% Other parameters
 

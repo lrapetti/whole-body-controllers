@@ -230,7 +230,12 @@ function [tauModel, Sigma, NA, f_HDot, ...
                            human_dJRArm_nu - dJRArm_nu];
     
         Big_Gamma      = Big_Q*Big_Minv*Big_Jct;
-        Big_Gammainv   = (eye(size(Big_Gamma,1)))/(Big_Gamma + 0.000001*eye(size(Big_Gamma,1)));
+        
+        regularization_term = 1;
+        if(STANDUP_WITH_HUMAN_FORCE && ~MEASURED_FT)
+            regularization_term = 0.000001;
+        end
+        Big_Gammainv   = (eye(size(Big_Gamma,1)))/(Big_Gamma + regularization_term*eye(size(Big_Gamma,1)));
         
         Big_G1        = - Big_Gammainv*Big_Q*Big_Minv*[human_St; zeros(6+ROBOT_DOF,HUMAN_DOF)] ;
         Big_G2        = - Big_Gammainv*Big_Q*Big_Minv*[zeros(6+HUMAN_DOF,ROBOT_DOF); St];
@@ -325,17 +330,17 @@ function [tauModel, Sigma, NA, f_HDot, ...
                                   Gain.KP_AngularMomentum .* intHw];
         
     elseif STANDUP_WITH_HUMAN_TORQUE %% with human joint torques
-        %%TODO: This is where AnDy control laws is implemented
+        
         JcmmMinv = Jcmm/M;
-        JcmmMinvJt = JcmmMinv*transpose(Jc);
-        Delta = JcmmMinv*St + JcmmMinvJt*-Big_G2(1:12,:);
+        JcmmMinvJcArmt = JcmmMinv*transpose(JcArm);
+        Delta = JcmmMinv*St + JcmmMinvJcArmt*-Big_G2(1:12,:);
         Pinv_Delta = pinvDamped(Delta,Reg.pinvDamp);
         
         nullDelta    = eye(ROBOT_DOF) - Pinv_Delta*Delta;
 
-        Lambda = JcmmMinv*transpose(Jc)*-Big_G3(1:12,:);
+        Lambda = JcmmMinvJcArmt*-Big_G3(1:12,:) + gravityWrench + int_H_tilde_times_gain - HDotDes;
         
-        Omega = JcmmMinvJt*-Big_G1(1:12,:);
+        Omega = JcmmMinvJcArmt*-Big_G1(1:12,:);
         phri_torque_alpha    = (transpose(H_error)*Omega*human_torques)/(norm(H_error)+Reg.norm_tolerance);
         alpha = phri_torque_alpha;
         if phri_torque_alpha >= 0 && state < 4
@@ -346,15 +351,13 @@ function [tauModel, Sigma, NA, f_HDot, ...
         HDotDes   = [m*xDDcomStar ;
                      -Gain.KD_AngularMomentum*H(4:end)-Gain.KP_AngularMomentum*intHw];
         
-        % TODO: May be gains are not correct here! 
         int_H_tilde_times_gain = [m * gainsPCOM .* (xCoM - desired_x_dx_ddx_CoM(:,1));
                                   Gain.KP_AngularMomentum .* intHw];
         
-        % TODO: Some terms are missing here - Using wrong nullspace
-        tauModel  = -Pinv_Delta*(Lambda + correctionFromSupportTorque + gravityWrench + H_error - HDotDes + int_H_tilde_times_gain) + nullDelta*(h(7:end) - Mbj'/Mb*h(1:6) ...
-                                 -impedances*NLMbar*qjTilde -dampings*NLMbar*qjDot);
+        tauModel  = -Pinv_Delta*(Lambda + H_error + correctionFromSupportTorque) + nullDelta*(h(7:end) - Mbj'/Mb*h(1:6) ...
+                                 -(impedances.*5)*NLMbar*qjTilde -(dampings.*2)*NLMbar*qjDot);
         
-        Sigma = -(Pinv_Delta*JcmmMinv*transpose(JcArm) + nullDelta*JBar);
+        Sigma = -(Pinv_Delta*JcmmMinv*transpose(Jc) + nullDelta*JBar);
         
     end
     
