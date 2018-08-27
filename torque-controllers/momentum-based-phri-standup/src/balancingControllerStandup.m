@@ -48,9 +48,6 @@ function [tauModel, Sigma, NA, f_HDot, ...
     % Mass of the robot
     m              = M(1,1);
     
-    % Mass of the human
-    human_m        = human_M(1,1);   
-    
     % The mass matrix is partitioned as:
     %
     %   M = [ Mb,   Mbj
@@ -202,9 +199,6 @@ function [tauModel, Sigma, NA, f_HDot, ...
         Big_Minv       = (eye(size(Big_M,1)))/(Big_M + 0.000001*eye(size(Big_M,1)));
         
         Big_h          = [human_h; h];
-    
-        Big_St         = [human_St                      zeros(6+HUMAN_DOF,ROBOT_DOF);
-                          zeros(6+ROBOT_DOF,HUMAN_DOF)  St];
                       
         %% The interaction wrench on human is considered here
         % TODO: This contact jacobian transpose assumes that the hand frames are coinciding
@@ -237,8 +231,10 @@ function [tauModel, Sigma, NA, f_HDot, ...
         end
         Big_Gammainv   = (eye(size(Big_Gamma,1)))/(Big_Gamma + regularization_term*eye(size(Big_Gamma,1)));
         
-        Big_G1        = - Big_Gammainv*Big_Q*Big_Minv*[human_St; zeros(6+ROBOT_DOF,HUMAN_DOF)] ;
-        Big_G2        = - Big_Gammainv*Big_Q*Big_Minv*[zeros(6+HUMAN_DOF,ROBOT_DOF); St];
+        Big_GammainvQMinv = Big_Gammainv*Big_Q*Big_Minv;
+        
+        Big_G1        = - Big_GammainvQMinv*[human_St; zeros(6+ROBOT_DOF,HUMAN_DOF)] ;
+        Big_G2        = - Big_GammainvQMinv*[zeros(6+HUMAN_DOF,ROBOT_DOF); St];
         Big_G3        =   Big_Gammainv*(Big_Q*Big_Minv*Big_h - Big_PV);
         
         if(STANDUP_WITH_HUMAN_FORCE && ~MEASURED_FT)
