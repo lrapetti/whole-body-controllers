@@ -15,12 +15,12 @@
 %  * Public License for more details
 %  */
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [tauModel, Sigma, NA, f_HDot, ...
+function [tauModel, Sigma, NA, f_LDot, ...
           HessianMatrixQP1Foot, gradientQP1Foot, ConstraintsMatrixQP1Foot, bVectorConstraintsQp1Foot, ...
           HessianMatrixQP2FeetOrLegs, gradientQP2FeetOrLegs, ConstraintsMatrixQP2FeetOrLegs, bVectorConstraintsQp2FeetOrLegs, ...
-          errorCoM, f_noQP, correctionFromSupportForce, H_error, V, alpha, fArms, phri_human_feet_wrench, phri_robot_feet_wrench, correctionFromSupportTorque] =  ...
+          errorCoM, f_noQP, correctionFromSupportForce, L_error, V, alpha, fArms, phri_human_feet_wrench, phri_robot_feet_wrench, correctionFromSupportTorque] =  ...
               balancingControllerStandup(constraints, ROBOT_DOF_FOR_SIMULINK, HUMAN_DOF_FOR_SIMULINK, ConstraintsMatrix, bVectorConstraints, ...
-                                         qj, qjDes, nu, M, h, H, intHw, w_H_l_contact, w_H_r_contact, JL, JR, dJL_nu, dJR_nu, xCoM, J_CoM, desired_x_dx_ddx_CoM, Jcmm, ...
+                                         qj, qjDes, nu, M, h, L, intLw, w_H_l_contact, w_H_r_contact, JL, JR, dJL_nu, dJR_nu, xCoM, J_CoM, desired_x_dx_ddx_CoM, Jcmm, ...
                                          gainsPCOM, gainsDCOM, impedances, Reg, Gain, w_H_lArm, w_H_rArm, JLArm, JRArm, dJLArm_nu, dJRArm_nu,...
                                          LArmWrench, RArmWrench, STANDUP_WITH_HUMAN_FORCE, MEASURED_FT, STANDUP_WITH_HUMAN_TORQUE, ...
                                          human_w_H_b, human_qj, human_nu_b, human_dqj, human_M, human_h, human_torques, ...
@@ -169,17 +169,17 @@ function [tauModel, Sigma, NA, f_HDot, ...
     dampings        = diag(dampings)*pinv(NLMbar,Reg.pinvTol)   + Reg.dampings*eye(ROBOT_DOF);       
                                     
     % desired robot momentum
-    H_desired  = [m.*desired_x_dx_ddx_CoM(:,2);
+    L_desired  = [m.*desired_x_dx_ddx_CoM(:,2);
                   zeros(3,1)];
               
     % momentum error
-    H_error    = H -H_desired;
+    L_error    = L -L_desired;
     
     % projector of contact forces into the direction parallel to momentum
     % error
     alpha = 100; %%This is the default value
     correctionFromSupportForce = zeros(6,1);
-    H_errParallel = H_error/(norm(H_error)+Reg.norm_tolerance);
+    L_errParallel = L_error/(norm(L_error)+Reg.norm_tolerance);
     
     phri_human_feet_wrench = zeros(12,1);
     phri_robot_feet_wrench = zeros(12,1);
@@ -189,7 +189,7 @@ function [tauModel, Sigma, NA, f_HDot, ...
     
     if (STANDUP_WITH_HUMAN_FORCE && MEASURED_FT)
         
-        alpha         = (transpose(H_error)*fsupport)/(norm(H_error)+Reg.norm_tolerance);
+        alpha         = (transpose(L_error)*fsupport)/(norm(L_error)+Reg.norm_tolerance);
     
     elseif ((STANDUP_WITH_HUMAN_FORCE && ~MEASURED_FT) || STANDUP_WITH_HUMAN_TORQUE)
         
@@ -255,7 +255,7 @@ function [tauModel, Sigma, NA, f_HDot, ...
             
             phri_fsupport   = A_arms * phri_fArms;
             
-            phri_alpha    = (transpose(H_error)*phri_fsupport)/(norm(H_error)+Reg.norm_tolerance);
+            phri_alpha    = (transpose(L_error)*phri_fsupport)/(norm(L_error)+Reg.norm_tolerance);
             alpha         = phri_alpha;
             
         end
@@ -264,7 +264,7 @@ function [tauModel, Sigma, NA, f_HDot, ...
     
     if alpha <= 0 && state < 4 && STANDUP_WITH_HUMAN_FORCE
         
-        correctionFromSupportForce = alpha*H_errParallel;
+        correctionFromSupportForce = alpha*L_errParallel;
         
     end               
                 
@@ -274,7 +274,7 @@ function [tauModel, Sigma, NA, f_HDot, ...
     % contact forces. By direct calculations one shows that the joint
     % torques take the following form:
     %
-    % 0) tau = tauModel + Sigma*f_HDot + SigmaNA*f0
+    % 0) tau = tauModel + Sigma*f_LDot + SigmaNA*f0
     %
     % where f0 is the redundancy of the contact wrenches. Then, the problem
     % is defined as follows:
@@ -307,8 +307,8 @@ function [tauModel, Sigma, NA, f_HDot, ...
     
     tauModel= zeros(ROBOT_DOF,1);
     Sigma   = zeros(ROBOT_DOF,12);
-    HDotDes = zeros(6,1);
-    int_H_tilde_times_gain = zeros(6,1);
+    LDotDes = zeros(6,1);
+    int_L_tilde_times_gain = zeros(6,1);
     correctionFromSupportTorque = zeros(6,1);
     if ~STANDUP_WITH_HUMAN_TORQUE %% Without considering human joint torques
         
@@ -319,11 +319,11 @@ function [tauModel, Sigma, NA, f_HDot, ...
         Sigma     = -(Pinv_JcMinvSt*JcMinvJct + nullJcMinvSt*JBar);
         
         % Desired rate-of-change of the robot momentum
-        HDotDes   = [m*xDDcomStar ;
-                     -Gain.KD_AngularMomentum*H(4:end)-Gain.KP_AngularMomentum*intHw] +correctionFromSupportForce;
+        LDotDes   = [m*xDDcomStar ;
+                     -Gain.KD_AngularMomentum*L(4:end)-Gain.KP_AngularMomentum*intLw] +correctionFromSupportForce;
          
-        int_H_tilde_times_gain = [m * gainsPCOM .* (xCoM - desired_x_dx_ddx_CoM(:,1));
-                                  Gain.KP_AngularMomentum .* intHw];
+        int_L_tilde_times_gain = [m * gainsPCOM .* (xCoM - desired_x_dx_ddx_CoM(:,1));
+                                  Gain.KP_AngularMomentum .* intLw];
         
     elseif STANDUP_WITH_HUMAN_TORQUE %% with human joint torques
         
@@ -335,22 +335,22 @@ function [tauModel, Sigma, NA, f_HDot, ...
         nullDelta    = eye(ROBOT_DOF) - Pinv_Delta*Delta;
         
         % Desired rate-of-change of the robot momentum
-        HDotDes   = [m*xDDcomStar ;
-                     -Gain.KD_AngularMomentum*H(4:end)-Gain.KP_AngularMomentum*intHw];
+        LDotDes   = [m*xDDcomStar ;
+                     -Gain.KD_AngularMomentum*L(4:end)-Gain.KP_AngularMomentum*intLw];
         
-        int_H_tilde_times_gain = [m * gainsPCOM .* (xCoM - desired_x_dx_ddx_CoM(:,1));
-                                  Gain.KP_AngularMomentum .* intHw];
+        int_L_tilde_times_gain = [m * gainsPCOM .* (xCoM - desired_x_dx_ddx_CoM(:,1));
+                                  Gain.KP_AngularMomentum .* intLw];
 
-        Lambda = JcmmMinvJcArmt*-Big_G3(1:12,:) + gravityWrench + int_H_tilde_times_gain - HDotDes;
+        Lambda = JcmmMinvJcArmt*-Big_G3(1:12,:) + gravityWrench + int_L_tilde_times_gain - LDotDes;
         
         Omega = JcmmMinvJcArmt*-Big_G1(1:12,:);
-        phri_torque_alpha    = (transpose(H_error)*Omega*human_torques)/(norm(H_error)+Reg.norm_tolerance);
+        phri_torque_alpha    = (transpose(L_error)*Omega*human_torques)/(norm(L_error)+Reg.norm_tolerance);
         alpha = phri_torque_alpha;
         if phri_torque_alpha >= 0 && state < 4
-            correctionFromSupportTorque = phri_torque_alpha*H_errParallel;
+            correctionFromSupportTorque = phri_torque_alpha*L_errParallel;
         end
         
-        tauModel  = -Pinv_Delta*(Lambda + H_error + correctionFromSupportTorque) + nullDelta*(h(7:end) - Mbj'/Mb*h(1:6) ...
+        tauModel  = -Pinv_Delta*(Lambda + L_error + correctionFromSupportTorque) + nullDelta*(h(7:end) - Mbj'/Mb*h(1:6) ...
                                  -(impedances.*2.5)*NLMbar*qjTilde -(dampings.*1.5)*NLMbar*qjDot);
         
         Sigma = -(Pinv_Delta*JcmmMinv*transpose(Jc) + nullDelta*JBar);
@@ -358,23 +358,23 @@ function [tauModel, Sigma, NA, f_HDot, ...
     end
     
     % computing Lyapunov function
-    V = 0.5 * transpose(H_error) * H_error;
-    V = V + 0.5 * transpose(int_H_tilde_times_gain) * int_H_tilde_times_gain;
+    V = 0.5 * transpose(L_error) * L_error;
+    V = V + 0.5 * transpose(int_L_tilde_times_gain) * int_L_tilde_times_gain;
     
     % Contact wrenches realizing the desired rate-of-change of the robot
-    % momentum HDotDes when standing on two feet. Note that f_HDot is
+    % momentum LDotDes when standing on two feet. Note that f_LDot is
     % different from zero only when both foot are in contact, i.e. 
     % constraints(1) = constraints(2) = 1. This because when the robot
-    % stands on one foot, the f_HDot is evaluated directly from the
+    % stands on one foot, the f_LDot is evaluated directly from the
     % optimizer (see next section).
-    f_HDot    = pinvA*(HDotDes - gravityWrench)*constraints(1)*constraints(2);
+    f_LDot    = pinvA*(LDotDes - gravityWrench)*constraints(1)*constraints(2);
     SigmaNA   = Sigma*NA;
    
     % The optimization problem 1) seeks for the redundancy of the external
     % wrench that minimize joint torques. Recall that the contact wrench can 
     % be written as:
     %
-    % f = f_HDot + NA*f_0 
+    % f = f_LDot + NA*f_0 
     %
     % Then, the constraints on the contact wrench is of the form
     %
@@ -382,14 +382,14 @@ function [tauModel, Sigma, NA, f_HDot, ...
     %
     % which in terms of f0 is:
     %
-    % ConstraintsMatrix2Feet*NA*f0 < bVectorConstraints - ConstraintsMatrix2Feet*f_HDot
+    % ConstraintsMatrix2Feet*NA*f0 < bVectorConstraints - ConstraintsMatrix2Feet*f_LDot
     ConstraintsMatrixQP2FeetOrLegs  = ConstraintsMatrix2FeetOrLegs*NA;
-    bVectorConstraintsQp2FeetOrLegs = bVectorConstraints2FeetOrLegs-ConstraintsMatrix2FeetOrLegs*f_HDot;
+    bVectorConstraintsQp2FeetOrLegs = bVectorConstraints2FeetOrLegs-ConstraintsMatrix2FeetOrLegs*f_LDot;
     
     % Evaluation of Hessian matrix and gradient vector for solving the
     % optimization problem 1).
     HessianMatrixQP2FeetOrLegs      = SigmaNA'*SigmaNA + eye(size(SigmaNA,2))*Reg.HessianQP;
-    gradientQP2FeetOrLegs           = SigmaNA'*(tauModel + Sigma*f_HDot);
+    gradientQP2FeetOrLegs           = SigmaNA'*(tauModel + Sigma*f_LDot);
 
     %% QP PARAMETERS FOR ONE FOOT STANDING
     % In the case the robot stands on one foot, there is no redundancy of
@@ -410,15 +410,15 @@ function [tauModel, Sigma, NA, f_HDot, ...
 
     A1Foot                    =  AL*constraints(1)*(1-constraints(2)) + AR*constraints(2)*(1-constraints(1));
     HessianMatrixQP1Foot      =  A1Foot'*A1Foot + eye(size(A1Foot,2))*Reg.HessianQP;
-    gradientQP1Foot           = -A1Foot'*(HDotDes - gravityWrench);
+    gradientQP1Foot           = -A1Foot'*(LDotDes - gravityWrench);
 
     %% DEBUG DIAGNOSTICS
     
     % Unconstrained solution for the problem 1)
-    f0                        = -pinvDamped(SigmaNA, Reg.pinvDamp*1e-5)*(tauModel + Sigma*f_HDot);
+    f0                        = -pinvDamped(SigmaNA, Reg.pinvDamp*1e-5)*(tauModel + Sigma*f_LDot);
     
     % Unconstrained contact wrenches
-    f_noQP                    =  pinvA*(HDotDes - gravityWrench) + NA*f0*constraints(1)*constraints(2); 
+    f_noQP                    =  pinvA*(LDotDes - gravityWrench) + NA*f0*constraints(1)*constraints(2); 
     
     % Error on the center of mass
     errorCoM                  =  xCoM - desired_x_dx_ddx_CoM(:,1);
