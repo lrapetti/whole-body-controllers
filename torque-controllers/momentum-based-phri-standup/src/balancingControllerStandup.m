@@ -333,6 +333,13 @@ function [tauModel, Sigma, NA, f_HDot, ...
         Pinv_Delta = pinvDamped(Delta,1);
         
         nullDelta    = eye(ROBOT_DOF) - Pinv_Delta*Delta;
+        
+        % Desired rate-of-change of the robot momentum
+        HDotDes   = [m*xDDcomStar ;
+                     -Gain.KD_AngularMomentum*H(4:end)-Gain.KP_AngularMomentum*intHw];
+        
+        int_H_tilde_times_gain = [m * gainsPCOM .* (xCoM - desired_x_dx_ddx_CoM(:,1));
+                                  Gain.KP_AngularMomentum .* intHw];
 
         Lambda = JcmmMinvJcArmt*-Big_G3(1:12,:) + gravityWrench + int_H_tilde_times_gain - HDotDes;
         
@@ -343,15 +350,8 @@ function [tauModel, Sigma, NA, f_HDot, ...
             correctionFromSupportTorque = phri_torque_alpha*H_errParallel;
         end
         
-        % Desired rate-of-change of the robot momentum
-        HDotDes   = [m*xDDcomStar ;
-                     -Gain.KD_AngularMomentum*H(4:end)-Gain.KP_AngularMomentum*intHw];
-        
-        int_H_tilde_times_gain = [m * gainsPCOM .* (xCoM - desired_x_dx_ddx_CoM(:,1));
-                                  Gain.KP_AngularMomentum .* intHw];
-        
         tauModel  = -Pinv_Delta*(Lambda + H_error + correctionFromSupportTorque) + nullDelta*(h(7:end) - Mbj'/Mb*h(1:6) ...
-                                 -(impedances.*5)*NLMbar*qjTilde -(dampings.*2)*NLMbar*qjDot);
+                                 -(impedances.*2.5)*NLMbar*qjTilde -(dampings.*1.5)*NLMbar*qjDot);
         
         Sigma = -(Pinv_Delta*JcmmMinv*transpose(Jc) + nullDelta*JBar);
         

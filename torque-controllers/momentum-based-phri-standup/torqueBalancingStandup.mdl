@@ -1064,10 +1064,10 @@ Model {
 	$ClassName		"Simulink.EditorInfo"
 	IsActive		[1]
 	ViewObjType		"SimulinkSubsys"
-	LoadSaveID		"2163"
+	LoadSaveID		"2275"
 	Extents			[2522.0, 1236.0]
-	ZoomFactor		[1.39]
-	Offset			[-831.89804406474832, -257.32374100719426]
+	ZoomFactor		[1.7]
+	Offset			[-34.852941176470608, 88.882352941176464]
       }
       Object {
 	$PropName		"DockComponentsInfo"
@@ -1101,7 +1101,7 @@ Model {
   ModifiedByFormat	  "%<Auto>"
   LastModifiedBy	  "yeshi"
   ModifiedDateFormat	  "%<Auto>"
-  LastModifiedDate	  "Mon Aug 27 15:22:14 2018"
+  LastModifiedDate	  "Tue Aug 28 13:59:20 2018"
   RTWModifiedTimeStamp	  457284020
   ModelVersionFormat	  "1.%<AutoIncrement:3432>"
   SampleTimeColors	  off
@@ -2374,6 +2374,12 @@ Model {
 	  ContentPreviewEnabled	  on
 	  ConfigSource		  "Workspace"
 	  ConfigObject		  "'HUMAN_WBTConfigRobot'"
+	  RobotName		  "'icubSim'"
+	  UrdfFile		  "'model.urdf'"
+	  ControlledJoints	  "{'l_elbow','l_shoulder_pitch','torso_roll'}"
+	  ControlBoardsNames	  "{'left_arm','right_arm','torso'}"
+	  LocalName		  "'WBT'"
+	  GravityVector		  "[0,0,-9.81]"
 	}
 	Block {
 	  BlockType		  Constant
@@ -7487,6 +7493,12 @@ Model {
 	  ContentPreviewEnabled	  off
 	  ConfigSource		  "Workspace"
 	  ConfigObject		  "'WBTConfigRobot'"
+	  RobotName		  "'icubSim'"
+	  UrdfFile		  "'model.urdf'"
+	  ControlledJoints	  "{'l_elbow','l_shoulder_pitch','torso_roll'}"
+	  ControlBoardsNames	  "{'left_arm','right_arm','torso'}"
+	  LocalName		  "'WBT'"
+	  GravityVector		  "[0,0,-9.81]"
 	}
 	Block {
 	  BlockType		  Delay
@@ -7517,8 +7529,8 @@ Model {
 	  }
 	  System {
 	    Name		    "Dump and visualize"
-	    Location		    [3200, 27, 4480, 1440]
-	    Open		    off
+	    Location		    [1920, 27, 4480, 1440]
+	    Open		    on
 	    PortBlocksUseCompactNotation off
 	    SetDomainSpec	    off
 	    DomainSpecType	    "Deduce"
@@ -20488,7 +20500,7 @@ Model {
 	      System {
 		Name			"State Machine Standup"
 		Location		[1920, 27, 4480, 1440]
-		Open			on
+		Open			off
 		PortBlocksUseCompactNotation off
 		SetDomainSpec		off
 		DomainSpecType		"Deduce"
@@ -36512,9 +36524,6 @@ Stateflow {
     screen		    [1 1 1280 1024 1.000677131425054]
     treeNode		    [0 130 0 0]
     viewObj		    129
-    visible		    1
-    subviewS {
-    }
     ssIdHighWaterMark	    87
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
