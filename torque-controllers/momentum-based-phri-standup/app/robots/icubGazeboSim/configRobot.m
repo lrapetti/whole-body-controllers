@@ -9,7 +9,7 @@ ROBOT_DOF_FOR_SIMULINK   = eye(ROBOT_DOF);
 
 % Robot configuration for WBT3.0
 WBTConfigRobot           = WBToolbox.Configuration;
-WBTConfigRobot.RobotName = 'iCub';
+WBTConfigRobot.RobotName = 'icubSim';
 WBTConfigRobot.UrdfFile  = 'model.urdf';
 WBTConfigRobot.LocalName = 'WBT';
 
@@ -47,9 +47,12 @@ Frames.RIGHT_HAND        = 'r_hand_dh_frame';
 % when Config.STANDUP_WITH_HUMAN is setted to TRUE, the robot will be aware 
 % of the external forces at the arms provided by the human and it will use
 % also them for lifting up.
-Config.STANDUP_WITH_HUMAN_FORCE           = false;
-Config.MEASURED_FT                        = false;
-Config.STANDUP_WITH_HUMAN_TORQUE          = true;
+
+Config.USING_HUMAN_MODEL                  = false; %flag to check if the human model is used or robot model is used as human
+
+Config.STANDUP_WITH_HUMAN_FORCE           = true;
+Config.MEASURED_FT                        = true;
+Config.STANDUP_WITH_HUMAN_TORQUE          = false;
 
 %% Other parameters
 
