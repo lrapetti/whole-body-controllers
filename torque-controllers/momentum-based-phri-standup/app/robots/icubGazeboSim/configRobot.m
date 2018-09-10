@@ -50,9 +50,9 @@ Frames.RIGHT_HAND        = 'r_hand_dh_frame';
 
 Config.USING_HUMAN_MODEL                  = false; %flag to check if the human model is used or robot model is used as human
 
-Config.STANDUP_WITH_HUMAN_FORCE           = true;
-Config.MEASURED_FT                        = true;
-Config.STANDUP_WITH_HUMAN_TORQUE          = false;
+Config.STANDUP_WITH_HUMAN_FORCE           = false;
+Config.MEASURED_FT                        = false;
+Config.STANDUP_WITH_HUMAN_TORQUE          = true;
 
 %% Other parameters
 

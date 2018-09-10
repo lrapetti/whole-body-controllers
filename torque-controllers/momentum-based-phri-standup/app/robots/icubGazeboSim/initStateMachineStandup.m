@@ -31,7 +31,20 @@ Reg.dampings       = 0;
 Reg.HessianQP      = 1e-2; 
 Reg.norm_tolerance = 1e-4;
                             
-%% COM AND JOINT GAINS 
+%% COM AND JOINT GAINS
+HUMAN_TORQUE = true;
+
+if HUMAN_TORQUE
+
+    Gain.KP_COM     =      [305   95  100;     % state ==  1  BALANCING ON THE LEGS
+                            305   95  100;     % state ==  2  MOVE COM FORWARD
+                            305   95  100;     % state ==  3  TWO FEET BALANCING
+                            305   95  100];    % state ==  4  LIFTING UP
+
+    Gain.KD_COM = 2*sqrt(Gain.KP_COM)/10;
+    
+end
+
 Gain.KP_COM     =      [250   250  50;     % state ==  1  BALANCING ON THE LEGS
                         250   250  50;     % state ==  2  MOVE COM FORWARD
                         250   250  50;     % state ==  3  TWO FEET BALANCING
@@ -94,11 +107,21 @@ Sm.stateAt0 = 1;
 
 % delta to be summed to the reference CoM position (STANDUP DEMO ONLY)
 
+if HUMAN_TORQUE
+    
+    Sm.CoM_delta        = [% THIS REFERENCE IS USED AS A DELTA W.R.T. THE POSITION OF THE LEFT LEG
+                           0.0     0.0     0.0;       % NOT USED
+                           0.14   -0.02    0.0;       % state ==  2  MOVE COM FORWARD
+                          -0.02    0.0     0.0;       % state ==  3  TWO FEET BALANCING
+                           0.00    0.0     0.20];     % state ==  4  LIFTING UP
+end
+
 Sm.CoM_delta        = [% THIS REFERENCE IS USED AS A DELTA W.R.T. THE POSITION OF THE LEFT LEG
                        0.0     0.0     0.0;       % NOT USED
                        0.12   -0.0295  0.0;       % state ==  2  MOVE COM FORWARD
-                       0.04    0.0     0.0;       % state ==  3  TWO FEET BALANCING
+                       0.04    0.01    0.0;       % state ==  3  TWO FEET BALANCING
                       -0.01    0.0     0.20];     % state ==  4  LIFTING UP
+
 
 % configuration parameters for state machine (STANDUP DEMO ONLY) 
 Sm.tBalancing           = 3;

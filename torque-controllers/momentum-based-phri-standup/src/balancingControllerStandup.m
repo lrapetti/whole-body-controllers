@@ -240,17 +240,17 @@ function [tauModel, Sigma, NA, f_LDot, ...
         if(STANDUP_WITH_HUMAN_FORCE && ~MEASURED_FT)
             
             combined_wrench    = [Big_G1 Big_G2]*combined_torques + Big_G3;
-            
+        
             phri_human_feet_wrench   = [combined_wrench(1:6,:);
                                         combined_wrench(7:12,:)];
-            
+        
             phri_robot_feet_wrench   = [combined_wrench(13:18,:);
                                         combined_wrench(19:24,:)];
-            
+        
             %% The interaction wrench acting on the robot is equal and opposite to that of the computed wrench, hence -ve sign
-            phri_fArms =   -[combined_wrench(25:30,:);
-                             combined_wrench(31:end,:)];
-            
+            phri_fArms      =   -[combined_wrench(25:30,:);
+                                  combined_wrench(31:end,:)];
+                     
             fArms           = phri_fArms;
             
             phri_fsupport   = A_arms * phri_fArms;
@@ -350,7 +350,14 @@ function [tauModel, Sigma, NA, f_LDot, ...
             correctionFromSupportTorque = phri_torque_alpha*L_errParallel;
         end
         
-        tauModel  = -Pinv_Delta*(Lambda + L_error + correctionFromSupportTorque) + nullDelta*(h(7:end) - Mbj'/Mb*h(1:6) ...
+        local_gain = [ 1    0    0    0    0     0;
+                       0    1    0    0    0     0;
+                       0    0    1    0    0     0;
+                       0    0    0    1    0     0;
+                       0    0    0    0    1     0;
+                       0    0    0    0    0     1];
+                   
+        tauModel  = -Pinv_Delta*(Lambda + local_gain*L_error + correctionFromSupportTorque) + nullDelta*(h(7:end) - Mbj'/Mb*h(1:6) ...
                                  -(impedances.*2.5)*NLMbar*qjTilde -(dampings.*1.5)*NLMbar*qjDot);
         
         Sigma = -(Pinv_Delta*JcmmMinv*transpose(Jc) + nullDelta*JBar);
