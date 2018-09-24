@@ -118,6 +118,9 @@ end
 % value between 0 and 1
 Config.K_ff  = 0;
 
+% gain for feedforward term in current caluclation
+Config.K_tau = 1.0;
+
 % Multiplier of viscous friction as seen in the motors dynamics
 Kbemf = [0.00125  0.00125  0.00125 ...                    % torso
          0.002  0.0005 0.0007 0.0007 ...                  % left arm
