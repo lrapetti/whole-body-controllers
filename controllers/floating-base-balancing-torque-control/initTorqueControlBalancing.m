@@ -43,23 +43,19 @@ Config.tStep           = 0.01;
 %% PRELIMINARY CONFIGURATION
 %
 % DEMO_TYPE: defines the kind of demo that will be performed.
-%
-% 'YOGA': the robot will perform the YOGA++ demo (highly dynamic movements
-%         while balancing on one foot and two feet)
-%   
-% 'COORDINATOR': the robot can either balance on two feet or move from left
-%                to right follwing a desired center-of-mass trajectory.
 % 
-DEMO_TYPE                     = 'YOGA';
+DEMO_TYPE                     = 'COORDINATOR';
+ROBOT_1_MODEL                 = 'iCubGazeboV2_5';
+ROBOT_1_NAME                  = 'iCub1';
+ROBOT_2_MODEL                 = 'iCubGazeboV2_5';
+ROBOT_2_NAME                  = 'iCub2';
 
 % Config.SCOPES: debugging scopes activation
-Config.SCOPES_WRENCHES        = true;
-Config.SCOPES_GAIN_SCHE_INFO  = true;
+Config.SCOPES_GAIN_SCHE_INFO  = false;
 Config.SCOPES_MAIN            = true;
 Config.SCOPES_QP              = true;
 
 % DATA PROCESSING
-%
 % Save the Matlab workspace after stopping the simulation
 Config.SAVE_WORKSPACE         = false;
 
@@ -68,16 +64,19 @@ Config.CHECK_INTEGRATION_TIME = true;
 Config.PLOT_INTEGRATION_TIME  = false;
 
 % Run robot-specific configuration parameters
-run(strcat('app/robots/',getenv('YARP_ROBOT_NAME'),'/configRobot.m')); 
-run(strcat('app/robots/',getenv('YARP_ROBOT_NAME'),'/configStateMachine.m')); 
-run(strcat('app/robots/',getenv('YARP_ROBOT_NAME'),'/gainsAndReferences.m')); 
+run(strcat('app/robots/',ROBOT_1_MODEL,'/configRobot.m')); 
+run(strcat('app/robots/',ROBOT_1_MODEL,'/configStateMachine.m')); 
+run(strcat('app/robots/',ROBOT_1_MODEL,'/gainsAndReferences.m')); 
+WBTConfigRobot_1 = WBTConfigRobot.copy;
+WBTConfigRobot_1.RobotName = ROBOT_1_NAME;
 
-% Deactivate/activate the internal coordinator
-if strcmpi(DEMO_TYPE, 'COORDINATOR')
-
-    Config.COORDINATOR_DEMO = true;
-    
-elseif strcmpi(DEMO_TYPE, 'YOGA')
-    
-    Config.COORDINATOR_DEMO = false;
+if (not(strcmp(ROBOT_1_MODEL, ROBOT_2_MODEL)))
+    run(strcat('app/robots/',ROBOT_2_MODEL,'/configRobot.m')); 
+    run(strcat('app/robots/',ROBOT_2_MODEL,'/configStateMachine.m')); 
+    run(strcat('app/robots/',ROBOT_2_MODEL,'/gainsAndReferences.m')); 
 end
+WBTConfigRobot_2 = WBTConfigRobot.copy;
+WBTConfigRobot_2.RobotName = ROBOT_2_NAME;
+
+% Run board configuration parameters
+run('app/configBoard.m'); 

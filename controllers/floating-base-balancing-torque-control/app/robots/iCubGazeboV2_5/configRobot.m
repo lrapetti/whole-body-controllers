@@ -34,15 +34,11 @@ end
 
 % Frames list
 Frames.BASE       = 'root_link'; 
-Frames.IMU        = 'imu_frame';
 Frames.LEFT_FOOT  = 'l_sole';
 Frames.RIGHT_FOOT = 'r_sole';
+Frames.LEFT_HAND  = 'l_hand';
+Frames.RIGHT_HAND = 'r_hand';
 Frames.COM        = 'com';
-
-% Config.SATURATE_TORQUE_DERIVATIVE: if true, the derivative of the control
-% input is saturated. In this way, it is possible to reduce high frequency
-% oscillations and discontinuities in the control input.
-Config.SATURATE_TORQUE_DERIVATIVE         = false;
 
 % if TRUE, the controller will STOP if the joints hit the joints limits
 % and/or if the (unsigned) difference between two consecutive joints
@@ -50,51 +46,6 @@ Config.SATURATE_TORQUE_DERIVATIVE         = false;
 Config.EMERGENCY_STOP_WITH_JOINTS_LIMITS  = false;
 Config.EMERGENCY_STOP_WITH_ENCODER_SPIKES = true;
 
-% Config.USE_MOTOR_REFLECTED_INERTIA: if set to true, motors reflected
-% inertias are included in the system mass matrix. If
-% Config.INCLUDE_COUPLING is true, then the coupling effect (some joints
-% motion is the result of more than one motor motion) is taken into account.
-% Config.INCLUDE_HARMONIC_DRIVE_INERTIA is true, then the harmonic drive
-% reflected inertia is also considered
-Config.USE_MOTOR_REFLECTED_INERTIA    = false;
-Config.INCLUDE_COUPLING               = false;
-Config.INCLUDE_HARMONIC_DRIVE_INERTIA = false;
-
-% Config.USE_IMU4EST_BASE: if set to false, the base frame is estimated by 
-% assuming that either the left or the right foot stay stuck on the ground. 
-% Which foot the controller uses depends on the contact forces acting on it. 
-% If set to true, the base orientation is estimated by using the IMU, while
-% the base position by assuming that the origin of either the right or the
-% left foot do not move. 
-Config.USE_IMU4EST_BASE = false;
-
-% Config.YAW_IMU_FILTER when the flag Config.USE_IMU4EST_BASE = true, then 
-% the orientation of the floating base is estimated as explained above. However,
-% the foot is usually perpendicular to gravity when the robot stands on flat 
-% surfaces, and rotation about the gravity axis may be affected by the IMU drift 
-% in estimating this angle. Hence, when either of the flags Config.YAW_IMU_FILTER
-% is set to true, then the yaw angle of the contact foot is ignored and kept 
-% equal to the initial value.
-Config.FILTER_IMU_YAW   = true;
-
-% Config.CORRECT_NECK_IMU: when set equal to true, the kinematics from the
-% IMU and the contact foot is corrected by using the neck angles. If it set
-% equal to false, recall that the neck is assumed to be in (0,0,0). Valid
-% ONLY while using the ICUB HEAD IMU!
-Config.CORRECT_NECK_IMU = false;
-
 % Config.USE_QP_SOLVER: if set to true, a QP solver is used to account for 
 % inequality constraints of contact wrenches.
 Config.USE_QP_SOLVER    = true; 
-
-% Ports name list
-Ports.WRENCH_LEFT_FOOT  = '/wholeBodyDynamics/left_leg/cartesianEndEffectorWrench:o';
-Ports.WRENCH_RIGHT_FOOT = '/wholeBodyDynamics/right_leg/cartesianEndEffectorWrench:o';
-Ports.IMU               = ['/' WBTConfigRobot.RobotName '/inertial'];
-Ports.NECK_POS          = ['/' WBTConfigRobot.RobotName '/head/state:o'];
-
-% Ports dimensions
-Ports.NECK_POS_PORT_SIZE         = 3;
-Ports.IMU_PORT_SIZE              = 12;
-Ports.IMU_PORT_ORIENTATION_INDEX = [1,2,3];
-Ports.WRENCH_PORT_SIZE           = 6;

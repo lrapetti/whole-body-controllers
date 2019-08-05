@@ -1,8 +1,8 @@
 function [HessianMatrixOneFoot, gradientOneFoot, ConstraintsMatrixOneFoot, bVectorConstraintsOneFoot, ...
           HessianMatrixTwoFeet, gradientTwoFeet, ConstraintsMatrixTwoFeet, bVectorConstraintsTwoFeet, ...
           tauModel, Sigma, Na, f_LDot] =  ...
-              momentumBasedController(feetContactStatus, ConstraintsMatrix, bVectorConstraints, jointPos, jointPos_des, nu, M, h, L, intL_angMomError, w_H_l_sole, w_H_r_sole, ...
-                                      J_l_sole, J_r_sole, JDot_l_sole_nu, JDot_r_sole_nu, pos_CoM, J_CoM, desired_pos_vel_acc_CoM, KP_CoM, KD_CoM, KP_postural, Config, Reg, Gain)
+              momentumBasedController(feetContactStatus, ConstraintsMatrix, bVectorConstraints, nu, M, h, L, w_H_l_sole, w_H_r_sole, ...
+                                      J_l_sole, J_r_sole, JDot_l_sole_nu, JDot_r_sole_nu, pos_CoM, J_CoM, desired_pos_vel_acc_CoM, KP_CoM, KD_CoM, Config, Reg, Gain, w_H, J, JDot_l_hand_nu, JDot_r_hand_nu, w_H_l_hand_des, w_H_r_hand_des)
     
     % MOMENTUMBASEDCONTROLLER implements a momentum-based whole body
     %                         balancing controller for humanoid robots.
@@ -75,7 +75,7 @@ function [HessianMatrixOneFoot, gradientOneFoot, ConstraintsMatrixOneFoot, bVect
     %         to control (6). Therefore one can write:
     %
     %    f = pinvA*(LDot_star - f_grav) + Na*f_0 (4)
-    %
+    %n
     % where pinvA is the pseudoinverse of matrix A and Na is its null space
     % projector. f_0 is a free variable that does not affect the momentum
     % dynamics Eq (1).
@@ -94,7 +94,7 @@ function [HessianMatrixOneFoot, gradientOneFoot, ConstraintsMatrixOneFoot, bVect
 
     % Desired momentum dynamics
     LDot_star    = [m * acc_CoM_star;
-                   (-KP_angMom * L(4:end) -KI_angMom * intL_angMomError)];
+                   (-KP_angMom * L(4:end))];
        
     %% CASE 1: one foot balancing
     %
@@ -225,7 +225,7 @@ function [HessianMatrixOneFoot, gradientOneFoot, ConstraintsMatrixOneFoot, bVect
     %
     % is does not violate the constraints.
     
-    % Compute f_LDot 
+    % Compute f_LDot   
     pinvA       = pinv(A, Reg.pinvTol); 
     f_LDot      = pinvA*(LDot_star - f_grav);
                 
@@ -275,22 +275,19 @@ function [HessianMatrixOneFoot, gradientOneFoot, ConstraintsMatrixOneFoot, bVect
     pinvLambda  =  wbc.pinvDamped(Lambda, Reg.pinvDamp); 
     NullLambda  =  eye(NDOF) - pinvLambda*Lambda;
     Sigma       = -(pinvLambda*Jc_invM*Jc' + NullLambda*(transpose(Jc(:,7:end)) -Mbs'/Mb*transpose(Jc(:,1:6))));
-    
-    % Mbar is the mass matrix associated with the joint dynamics, i.e.
-    Mbar            = Ms-Mbs'/Mb*Mbs;
-    NullLambda_Mbar = NullLambda*Mbar;
-    
-    % Adaptation of the control gains for back compatibility with the older
-    % versions of the controller
-    KP_postural     = KP_postural*pinv(NullLambda_Mbar, Reg.pinvTol) + Reg.KP_postural*eye(NDOF);
-    KD_postural     = diag(Gain.KD_postural)*pinv(NullLambda_Mbar,Reg.pinvTol) + Reg.KD_postural*eye(NDOF);
-    
-    % Joints velocity and joints position error
-    jointVel        = nu(7:end);
-    jointPosTilde   = jointPos - jointPos_des;
-    
+  
     % Get the vector tauModel
-    u_0             = -KP_postural*NullLambda_Mbar*jointPosTilde -KD_postural*NullLambda_Mbar*jointVel;
+    % use desired frame pose
+    % u_0             = -KP_postural*NullLambda_Mbar*jointPosTilde -KD_postural*NullLambda_Mbar*jointVel;
+    % tauModel        =  pinvLambda*(Jc_invM*h - JcDot_nu) + NullLambda*(h(7:end) - Mbs'/Mb*h(1:6) + u_0);
+    % use desired postural
+    JDot_nu         = [JDot_l_sole_nu; JDot_r_sole_nu; JDot_l_hand_nu; JDot_r_hand_nu];
+    
+    vdot_l_hand     = [-100 * (w_H(9:11,4) - w_H_l_hand_des(1:3,4)  ); -50 * wbc.skewVee(w_H(9:11,1:3)/w_H_l_hand_des(1:3,1:3))];
+    vdot_r_hand     = [-100 * (w_H(13:15,4) - w_H_r_hand_des(1:3,4) ); -50 * wbc.skewVee(w_H(13:15,1:3)/w_H_r_hand_des(1:3,1:3))];
+    
+    vdot_star       = [zeros(12,1); vdot_l_hand; vdot_r_hand]; 
+    u_0             =  Ms * wbc.pinvDamped(J(:,7:end), Reg.pinvDamp) * (vdot_star - JDot_nu); 
     tauModel        =  pinvLambda*(Jc_invM*h - JcDot_nu) + NullLambda*(h(7:end) - Mbs'/Mb*h(1:6) + u_0);
   
     %% QP parameters for two feet standing
