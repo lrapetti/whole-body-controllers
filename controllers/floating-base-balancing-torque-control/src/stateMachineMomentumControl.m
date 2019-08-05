@@ -1,4 +1,4 @@
-function  [w_H_b, pos_CoM_des, feetContactStatus, KP_CoM_diag, KD_CoM_diag, state, smoothingTimeCoM, w_H_l_hand_des, w_H_r_hand_des, K_task_space] = ...
+function  [w_H_b, pos_CoM_des, KP_CoM_diag, KD_CoM_diag, state, smoothingTimeCoM, w_H_l_hand_des, w_H_r_hand_des, K_task_space] = ...
               stateMachineMomentumControl(pos_CoM_0, w_H_l_hand_0, w_H_r_hand_0, ...
                                           time, l_sole_H_b, StateMachine, Gain, Config)
 
@@ -41,7 +41,6 @@ function  [w_H_b, pos_CoM_des, feetContactStatus, KP_CoM_diag, KD_CoM_diag, stat
     
     % initialize outputs
     pos_CoM_des       = pos_CoM_0;
-    feetContactStatus = [1; 1];
     w_H_b             = eye(4);
     w_H_l_hand_des    = w_H_l_hand_0;
     w_H_r_hand_des    = w_H_r_hand_0;

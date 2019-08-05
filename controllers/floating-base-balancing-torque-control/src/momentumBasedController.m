@@ -1,7 +1,6 @@
-function [HessianMatrixOneFoot, gradientOneFoot, ConstraintsMatrixOneFoot, bVectorConstraintsOneFoot, ...
-          HessianMatrixTwoFeet, gradientTwoFeet, ConstraintsMatrixTwoFeet, bVectorConstraintsTwoFeet, ...
+function [HessianMatrixTwoFeet, gradientTwoFeet, ConstraintsMatrixTwoFeet, bVectorConstraintsTwoFeet, ...
           tauModel, Sigma, Na, f_LDot] =  ...
-              momentumBasedController(feetContactStatus, ConstraintsMatrix, bVectorConstraints, nu, M, h, L, w_H, J, JDot_nu, ...
+              momentumBasedController(ConstraintsMatrix, bVectorConstraints, nu, M, h, L, w_H, J, JDot_nu, ...
                                          pos_CoM, J_CoM, KP_CoM, KD_CoM, K_task_space, desired_pos_vel_acc_CoM, w_H_l_hand_des, w_H_r_hand_des, Reg, Gain, Config )
     
     % MOMENTUMBASEDCONTROLLER implements a momentum-based whole body
@@ -131,12 +130,7 @@ function [HessianMatrixOneFoot, gradientOneFoot, ConstraintsMatrixOneFoot, bVect
     %
     % where the inequality constraints represent the unilateral, friction
     % cone and local CoP constraints at the foot.
-    
-    % Hessian matrix and gradient QP one foot
-    A_oneFoot                 =  A_left*feetContactStatus(1)*(1 - feetContactStatus(2)) + A_right*feetContactStatus(2)*(1 - feetContactStatus(1));
-    HessianMatrixOneFoot      =  A_oneFoot'*A_oneFoot + eye(size(A_oneFoot,2))*Reg.HessianQP;
-    gradientOneFoot           = -A_oneFoot'*(LDot_star - f_grav);
-    
+
     % Update constraint matrices. The contact wrench associated with the 
     % left foot (resp. right foot) is subject to the following constraint:
     %
@@ -165,11 +159,6 @@ function [HessianMatrixOneFoot, gradientOneFoot, ConstraintsMatrixOneFoot, bVect
     w_R_l_sole                = w_H_l_sole(1:3,1:3);
     ConstraintMatrixLeftFoot  = ConstraintsMatrix * blkdiag(w_R_l_sole', w_R_l_sole');
     ConstraintMatrixRightFoot = ConstraintsMatrix * blkdiag(w_R_r_sole', w_R_r_sole');
-    
-    % One foot constraints
-    ConstraintsMatrixOneFoot  = feetContactStatus(1) * (1 - feetContactStatus(2)) * ConstraintMatrixLeftFoot + ...
-                                feetContactStatus(2) * (1 - feetContactStatus(1)) * ConstraintMatrixRightFoot;
-    bVectorConstraintsOneFoot = bVectorConstraints;
 
     %% CASE 2: two feet balancing
     %
@@ -245,7 +234,7 @@ function [HessianMatrixOneFoot, gradientOneFoot, ConstraintsMatrixOneFoot, bVect
     f_LDot      = pinvA*(LDot_star - f_grav);
                 
     % Null space of the matrix A            
-    Na          = (eye(12,12) - pinvA*A).*feetContactStatus(1).*feetContactStatus(2);
+    Na          = (eye(12,12) - pinvA*A);
     
     %% Compute Sigma and tauModel
     %
@@ -260,12 +249,12 @@ function [HessianMatrixOneFoot, gradientOneFoot, ConstraintsMatrixOneFoot, bVect
     
     % Contact jacobians
     NDOF        = size(J_l_sole(:,7:end),2);
-    Jc          = [J_l_sole.*feetContactStatus(1);      
-                   J_r_sole.*feetContactStatus(2)];
+    Jc          = [J_l_sole;      
+                   J_r_sole];
                    
     % Jacobian derivative dot(Jc)*nu
-    JcDot_nu    = [JDot_l_sole_nu.*feetContactStatus(1);      
-                   JDot_r_sole_nu.*feetContactStatus(2)];
+    JcDot_nu    = [JDot_l_sole_nu;      
+                   JDot_r_sole_nu];
 
     % Selector of actuated DoFs
     B           = [zeros(6,NDOF);
