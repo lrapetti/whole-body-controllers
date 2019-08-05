@@ -1,8 +1,8 @@
 function [HessianMatrixOneFoot, gradientOneFoot, ConstraintsMatrixOneFoot, bVectorConstraintsOneFoot, ...
           HessianMatrixTwoFeet, gradientTwoFeet, ConstraintsMatrixTwoFeet, bVectorConstraintsTwoFeet, ...
           tauModel, Sigma, Na, f_LDot] =  ...
-              momentumBasedController(feetContactStatus, ConstraintsMatrix, bVectorConstraints, nu, M, h, L, w_H_l_sole, w_H_r_sole, ...
-                                      J_l_sole, J_r_sole, JDot_l_sole_nu, JDot_r_sole_nu, pos_CoM, J_CoM, desired_pos_vel_acc_CoM, KP_CoM, KD_CoM, Config, Reg, Gain, w_H, J, JDot_l_hand_nu, JDot_r_hand_nu, w_H_l_hand_des, w_H_r_hand_des, K_task_space)
+              momentumBasedController(feetContactStatus, ConstraintsMatrix, bVectorConstraints, nu, M, h, L, w_H, J, JDot_nu, ...
+                                         pos_CoM, J_CoM, KP_CoM, KD_CoM, K_task_space, desired_pos_vel_acc_CoM, w_H_l_hand_des, w_H_r_hand_des, Reg, Gain, Config )
     
     % MOMENTUMBASEDCONTROLLER implements a momentum-based whole body
     %                         balancing controller for humanoid robots.
@@ -12,6 +12,21 @@ function [HessianMatrixOneFoot, gradientOneFoot, ConstraintsMatrixOneFoot, bVect
     %             Available at: https://ieeexplore.ieee.org/document/7759126/
 
     %% --- Initialization ---
+    
+    % Extract concatenated matrices
+    w_H_l_sole = w_H(1:4,:);
+    w_H_r_sole = w_H(5:8,:);
+    w_H_l_hand = w_H(9:12,:);
+    w_H_r_hand = w_H(13:16,:);
+    J_l_sole = J(1:6,:);
+    J_r_sole = J(7:12,:);
+    % J_l_hand = J(13:18,:);
+    % J_r_hand = J(19:24,:);
+    JDot_l_sole_nu = JDot_nu(1:6);
+    JDot_r_sole_nu = JDot_nu(7:12);
+    % JDot_l_hand_nu = JDot_nu(13:18);
+    % JDot_r_hand_nu = JDot_nu(19:24);
+
 
     % Compute the momentum rate of change. The momentum rate of change
     % equals the summation of the external forces and moments, i.e.:
@@ -86,7 +101,7 @@ function [HessianMatrixOneFoot, gradientOneFoot, ConstraintsMatrixOneFoot, bVect
     %    KD_momentum = blkdiag(KP_CoM, KI_angMom)
     %
     KP_angMom    = Gain.KP_AngularMomentum*eye(3);
-    KI_angMom    = Gain.KI_AngularMomentum*eye(3);
+    %KI_angMom    = Gain.KI_AngularMomentum*eye(3);
     
     % Desired CoM dynamics (conseguently, linear momentum)
     vel_CoM      = J_CoM(1:3,:) * nu;
@@ -281,10 +296,9 @@ function [HessianMatrixOneFoot, gradientOneFoot, ConstraintsMatrixOneFoot, bVect
     % u_0             = -KP_postural*NullLambda_Mbar*jointPosTilde -KD_postural*NullLambda_Mbar*jointVel;
     % tauModel        =  pinvLambda*(Jc_invM*h - JcDot_nu) + NullLambda*(h(7:end) - Mbs'/Mb*h(1:6) + u_0);
     % use desired postural
-    JDot_nu         = [JDot_l_sole_nu; JDot_r_sole_nu; JDot_l_hand_nu; JDot_r_hand_nu];
     
-    vdot_l_hand     = [- K_task_space(1) * (w_H(9:11,4) - w_H_l_hand_des(1:3,4)  ); - K_task_space(2) * wbc.skewVee(w_H(9:11,1:3)/w_H_l_hand_des(1:3,1:3))];
-    vdot_r_hand     = [- K_task_space(1) * (w_H(13:15,4) - w_H_r_hand_des(1:3,4) ); - K_task_space(2) * wbc.skewVee(w_H(13:15,1:3)/w_H_r_hand_des(1:3,1:3))];
+    vdot_l_hand     = [- K_task_space(1) * (w_H_l_hand(1:3,4) - w_H_l_hand_des(1:3,4) ); - K_task_space(2) * wbc.skewVee(w_H_l_hand(1:3,1:3)/w_H_l_hand_des(1:3,1:3))];
+    vdot_r_hand     = [- K_task_space(1) * (w_H_r_hand(1:3,4) - w_H_r_hand_des(1:3,4) ); - K_task_space(2) * wbc.skewVee(w_H_r_hand(1:3,1:3)/w_H_r_hand_des(1:3,1:3))];
     
     vdot_star       = [zeros(12,1); vdot_l_hand; vdot_r_hand]; 
     u_0             =  Ms * wbc.pinvDamped(J(:,7:end), Reg.pinvDamp) * (vdot_star - JDot_nu); 

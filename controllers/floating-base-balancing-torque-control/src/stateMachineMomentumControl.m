@@ -1,5 +1,5 @@
-function  [w_H_b, pos_CoM_des, jointPos_des, feetContactStatus, KP_postural_diag, KP_CoM_diag, KD_CoM_diag, state, smoothingTimeJoints, smoothingTimeCoM, w_H_l_hand_des, w_H_r_hand_des, K_task_space] = ...
-              stateMachineMomentumControl(pos_CoM_0, jointPos_0, w_H_l_hand_0, w_H_r_hand_0, ...
+function  [w_H_b, pos_CoM_des, feetContactStatus, KP_CoM_diag, KD_CoM_diag, state, smoothingTimeCoM, w_H_l_hand_des, w_H_r_hand_des, K_task_space] = ...
+              stateMachineMomentumControl(pos_CoM_0, w_H_l_hand_0, w_H_r_hand_0, ...
                                           time, l_sole_H_b, StateMachine, Gain, Config)
 
     % STATEMACHINEMOMENTUMCONTROL generates the references for performing
@@ -42,7 +42,6 @@ function  [w_H_b, pos_CoM_des, jointPos_des, feetContactStatus, KP_postural_diag
     % initialize outputs
     pos_CoM_des       = pos_CoM_0;
     feetContactStatus = [1; 1];
-    jointPos_des      = jointPos_0;
     w_H_b             = eye(4);
     w_H_l_hand_des    = w_H_l_hand_0;
     w_H_r_hand_des    = w_H_r_hand_0;
@@ -67,11 +66,9 @@ function  [w_H_b, pos_CoM_des, jointPos_des, feetContactStatus, KP_postural_diag
         w_H_r_hand_des(1:3,4) = pos_r_hand_des;
     end
     
-    smoothingTimeJoints = StateMachine.jointsSmoothingTime(currentState);
     smoothingTimeCoM = StateMachine.CoMSmoothingTime(currentState);
     
     % update gain matrices
-    KP_postural_diag = Gain.KP_postural(currentState,:);
     KP_CoM_diag      = Gain.KP_CoM(currentState,:);   
     KD_CoM_diag      = Gain.KD_CoM(currentState,:); 
     K_task_space     = Gain.K_task_space(currentState,:);

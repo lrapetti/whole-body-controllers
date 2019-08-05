@@ -12,12 +12,6 @@ Gain.KD_CoM = 2*sqrt(Gain.KP_CoM)/20;
 Gain.KI_AngularMomentum = 0.25 ;
 Gain.KP_AngularMomentum = 2*sqrt(Gain.KI_AngularMomentum);
 
-% Postural task gains
-%                   %  TORSO  %%        LEFT ARM   %%       RIGHT ARM   %%         LEFT LEG           %%         RIGHT LEG           %% 
-Gain.KP_postural = [10   30   20,  10   10    10    8,  10   10    10    8,  30   30   20   20   100 100,  30   50   30   60   100  100 ];
-
-Gain.KD_postural = 2*sqrt(Gain.KP_postural(1,:))/20;
-
 % Task space gains
 %                    % LIN %%  ANG %%
 Gain.K_task_space = [     100,     50];
@@ -31,16 +25,12 @@ Config.SmoothingTimeGainScheduling = 2;
 StateMachine.CoMSmoothingTime      = 1;
 
 % Smoothing time for joints references 
-StateMachine.jointsSmoothingTime   = 1;
 StateMachine.scaleFactorSmoothingTime = 0.9;
                                 
 %% CoM delta
 
 % To be summed to the reference CoM position
 StateMachine.CoM_delta  = [0.0,  0.00,  0.0 ];   %% NOT USED
-
-%% Joint references
-StateMachine.joints_references = [ zeros(1,ROBOT_DOF) ];  %% THIS REFERENCE IS IGNORED 
 
 %% References for CoM and hands trajectory
 Config.noOscillationTime       = 0;   
