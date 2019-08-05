@@ -2,7 +2,7 @@ function [HessianMatrixOneFoot, gradientOneFoot, ConstraintsMatrixOneFoot, bVect
           HessianMatrixTwoFeet, gradientTwoFeet, ConstraintsMatrixTwoFeet, bVectorConstraintsTwoFeet, ...
           tauModel, Sigma, Na, f_LDot] =  ...
               momentumBasedController(feetContactStatus, ConstraintsMatrix, bVectorConstraints, nu, M, h, L, w_H_l_sole, w_H_r_sole, ...
-                                      J_l_sole, J_r_sole, JDot_l_sole_nu, JDot_r_sole_nu, pos_CoM, J_CoM, desired_pos_vel_acc_CoM, KP_CoM, KD_CoM, Config, Reg, Gain, w_H, J, JDot_l_hand_nu, JDot_r_hand_nu, w_H_l_hand_des, w_H_r_hand_des)
+                                      J_l_sole, J_r_sole, JDot_l_sole_nu, JDot_r_sole_nu, pos_CoM, J_CoM, desired_pos_vel_acc_CoM, KP_CoM, KD_CoM, Config, Reg, Gain, w_H, J, JDot_l_hand_nu, JDot_r_hand_nu, w_H_l_hand_des, w_H_r_hand_des, K_task_space)
     
     % MOMENTUMBASEDCONTROLLER implements a momentum-based whole body
     %                         balancing controller for humanoid robots.
@@ -283,8 +283,8 @@ function [HessianMatrixOneFoot, gradientOneFoot, ConstraintsMatrixOneFoot, bVect
     % use desired postural
     JDot_nu         = [JDot_l_sole_nu; JDot_r_sole_nu; JDot_l_hand_nu; JDot_r_hand_nu];
     
-    vdot_l_hand     = [-100 * (w_H(9:11,4) - w_H_l_hand_des(1:3,4)  ); -50 * wbc.skewVee(w_H(9:11,1:3)/w_H_l_hand_des(1:3,1:3))];
-    vdot_r_hand     = [-100 * (w_H(13:15,4) - w_H_r_hand_des(1:3,4) ); -50 * wbc.skewVee(w_H(13:15,1:3)/w_H_r_hand_des(1:3,1:3))];
+    vdot_l_hand     = [- K_task_space(1) * (w_H(9:11,4) - w_H_l_hand_des(1:3,4)  ); - K_task_space(2) * wbc.skewVee(w_H(9:11,1:3)/w_H_l_hand_des(1:3,1:3))];
+    vdot_r_hand     = [- K_task_space(1) * (w_H(13:15,4) - w_H_r_hand_des(1:3,4) ); - K_task_space(2) * wbc.skewVee(w_H(13:15,1:3)/w_H_r_hand_des(1:3,1:3))];
     
     vdot_star       = [zeros(12,1); vdot_l_hand; vdot_r_hand]; 
     u_0             =  Ms * wbc.pinvDamped(J(:,7:end), Reg.pinvDamp) * (vdot_star - JDot_nu); 

@@ -18,9 +18,9 @@ Gain.KP_postural = [10   30   20,  10   10    10    8,  10   10    10    8,  30 
 
 Gain.KD_postural = 2*sqrt(Gain.KP_postural(1,:))/20;
 
-% Inverse kinematics gains
-%           % LIN %%  ANG %%
-Gain.K_IK = [     -40,     -40];
+% Task space gains
+%                    % LIN %%  ANG %%
+Gain.K_task_space = [     100,     50];
 
 %% Smoothing times
 
