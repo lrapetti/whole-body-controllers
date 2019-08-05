@@ -70,26 +70,18 @@ function [HessianMatrixTwoFeet, gradientTwoFeet, ConstraintsMatrixTwoFeet, bVect
     % We would like to achieve a desired momentum's dynamics:
     %
     %    LDot_star = LDot_des - KP_momentum*(L-LDes) - KI_momentum*(intL-intLDes)
-    %
-    % where intL is the integral of the momentum. Assume the contact forces
-    % and moments can be considered as control inputs of Eq. (1). Then, the
-    % problem is to find f such that:
+    % 
+    % for the moment we are going not to consieder the integral error. 
+    % Assume the contact forces and moments can be considered as control 
+    % inputs of Eq. (1). Then, the problem is to find f such that:
     %
     %    LDot_star = A*f + f_grav (2)
     %
-    % We must now distinguish two different cases:
-    %
-    % CASE 1: the robot is balancing on one foot. In this case, the solution 
-    %         to Eq. (2) is:
-    %
-    %    f = A^(-1)*(LDot_star - f_grav) (3)
-    %
-    % CASE 2: the robot is balancing on two feet. In this case, there is
-    %         redundancy as there are more control inputs (12) than variables 
-    %         to control (6). Therefore one can write:
+    % there is redundancy as there are more control inputs (12) than 
+    % variables to control (6). Therefore one can write:
     %
     %    f = pinvA*(LDot_star - f_grav) + Na*f_0 (4)
-    %n
+    %
     % where pinvA is the pseudoinverse of matrix A and Na is its null space
     % projector. f_0 is a free variable that does not affect the momentum
     % dynamics Eq (1).
@@ -100,7 +92,6 @@ function [HessianMatrixTwoFeet, gradientTwoFeet, ConstraintsMatrixTwoFeet, bVect
     %    KD_momentum = blkdiag(KP_CoM, KI_angMom)
     %
     KP_angMom    = Gain.KP_AngularMomentum*eye(3);
-    %KI_angMom    = Gain.KI_AngularMomentum*eye(3);
     
     % Desired CoM dynamics (conseguently, linear momentum)
     vel_CoM      = J_CoM(1:3,:) * nu;
@@ -109,65 +100,14 @@ function [HessianMatrixTwoFeet, gradientTwoFeet, ConstraintsMatrixTwoFeet, bVect
     % Desired momentum dynamics
     LDot_star    = [m * acc_CoM_star;
                    (-KP_angMom * L(4:end))];
-       
-    %% CASE 1: one foot balancing
-    %
-    % In this case, we make use of a QP solver. In particular, Eq. (3) is rewritten as:
-    %
-    %    f^T*A^T*A*f - f^T*A^T*(LDot_star - f_grav) = 0 (5)
-    %
-    % that is the quadratic problem associated with Eq. (3). Now rewrite
-    % Eq. (5) as:
-    %
-    %    f^T*Hessian*f + f^T*gradient = 0
-    %
-    % where Hessian = A^T*A and gradient = - A^T*(LDot_star - f_grav). Now
-    % it is possible to solve the folowing QP problem:
-    %
-    % f_star = argmin_f |f^T*Hessian*f + f^T*gradient|^2
-    %
-    %          s.t. C*f < b
-    %
-    % where the inequality constraints represent the unilateral, friction
-    % cone and local CoP constraints at the foot.
-
-    % Update constraint matrices. The contact wrench associated with the 
-    % left foot (resp. right foot) is subject to the following constraint:
-    %
-    %     ConstraintMatrixLeftFoot * l_sole_f_left < bVectorConstraints
-    %
-    % In this case, however, f_left is expressed w.r.t. the frame l_sole,
-    % which is solidal to the left foot. The contact forces f used in the
-    % controller however are expressed w.r.t. the frame l_sole[w], that is
-    % a frame with the origin at the contact location but the orientation
-    % of the inertial frame. For this reason, the mapping between the two
-    % frames is given by:
-    %
-    %    l_sole_f_left = blkdiag(l_sole_R_w, l_sole_R_w) * l_sole[w]_f_left
-    %
-    % therefore we rewrite the contact constraints as:
-    %
-    %    ConstraintMatrixLeftFoot * blkdiag(l_sole_R_w, l_sole_R_w) * l_sole[w]_f_left < bVectorConstraints
-    %
-    % and this in the end results in updating the constraint matrix as follows:
-    %
-    %    ConstraintMatrixLeftFoot = ConstraintMatrixLeftFoot * blkdiag(l_sole_R_w, l_sole_R_w) 
-    %
-    % The same holds for the right foot.
-    %
-    w_R_r_sole                = w_H_r_sole(1:3,1:3);
-    w_R_l_sole                = w_H_l_sole(1:3,1:3);
-    ConstraintMatrixLeftFoot  = ConstraintsMatrix * blkdiag(w_R_l_sole', w_R_l_sole');
-    ConstraintMatrixRightFoot = ConstraintsMatrix * blkdiag(w_R_r_sole', w_R_r_sole');
-
-    %% CASE 2: two feet balancing
-    %
-    % In this case, we solve Eq (4) by means of the matrix pseudoinverse and 
-    % NOT through the QP. The QP is instead used to calculate the vector 
-    % projected in the null space (f_0). In particular, we choose f_0 in
-    % order to minimize the joint torques magnitude. To do so, it is necessary
-    % to write down the relationship between the joint torques and the
-    % contact forces:
+    
+             
+    % we solve Eq (4) by means of the matrix pseudoinverse and. The QP is 
+    % instead used to calculate the vector projected in the null space (f_0)
+    % In particular, we choose f_0 in order to minimize the joint torques 
+    % magnitude. To do so, it is necessary to write down the relationship 
+    % between the joint torques and the contact forces starting from the 
+    % dynamic equation.
     %
     %    tau = pinvLambda*(Jc*invM*(h - Jc^T*f) -JcDot_nu) + NLambda*tau_0 (6)
     %
@@ -183,13 +123,20 @@ function [HessianMatrixTwoFeet, gradientTwoFeet, ConstraintsMatrixTwoFeet, bVect
     % obtained by partitioning the dynamics in order to split the first
     % six rows and the remaining NDOF rows.
     %
-    % u_0 instead are the feedback terms associated with the postural task,
-    % and therefore are given by the following expression (for more info,
-    % look at the reference paper):
+    % u_0 instead are the feedback terms associated with the tasks space 
+    % control objective, and therefore are given by the following 
+    % expression:
     %
-    %    u_0 = -KP_postural*NLambda*Mbar*jointPosTilde -KD_postural*NLambda*Mbar*jointVel
-    %         
-    % where Mbar =  Ms-Msb/Mb*Mbs.
+    %    u_0       = M*pinv(J)*(vDot_star - JDot_nu) + N_J*nuDot_0
+    %    vDot_star = [  0_6
+    %                   0_6
+    %                  -K_linear_task_space*(pos_l_hand - pos_l_hand_des)
+    %                  -K_rotational_task_space*skeevee(R_l_hand * (R_l_hand_des)^(-1))
+    %                  -K_linear_task_space*(pos_r_hand - pos_r_hand_des)
+    %                  -K_rotational_task_space*skeevee(R_r_hand * (R_r_hand_des)^(-1))
+    %
+    % assuming we want to minimize the joint velocities, we assume
+    % nuDot_0=0.
     %
     % Now, let us rewrite Eq. (6) in order to isolate the terms which
     % depend on the contact forces:
@@ -238,21 +185,13 @@ function [HessianMatrixTwoFeet, gradientTwoFeet, ConstraintsMatrixTwoFeet, bVect
     
     %% Compute Sigma and tauModel
     %
-    % NOTE that the formula Eq (7) will be used for computing the torques 
-    % also in case  the robot is balancing on ONE foot. In fact, in that
-    % case, f will be a vector of the form (left foot balancing):
-    %
-    %    f = [f_left (from QP); zeros(6,1)];
-    %
-    % same holds for the right foot balancing. The additional zeros are
-    % required in order to match the dimension of Sigma (NDOF x 12).
     
-    % Contact jacobians
+    % Feet jacobians
     NDOF        = size(J_l_sole(:,7:end),2);
     Jc          = [J_l_sole;      
                    J_r_sole];
                    
-    % Jacobian derivative dot(Jc)*nu
+    % Jacobian derivative dot(Jc)*nu for the feet
     JcDot_nu    = [JDot_l_sole_nu;      
                    JDot_r_sole_nu];
 
@@ -281,25 +220,25 @@ function [HessianMatrixTwoFeet, gradientTwoFeet, ConstraintsMatrixTwoFeet, bVect
     Sigma       = -(pinvLambda*Jc_invM*Jc' + NullLambda*(transpose(Jc(:,7:end)) -Mbs'/Mb*transpose(Jc(:,1:6))));
   
     % Get the vector tauModel
-    % use desired frame pose
-    % u_0             = -KP_postural*NullLambda_Mbar*jointPosTilde -KD_postural*NullLambda_Mbar*jointVel;
-    % tauModel        =  pinvLambda*(Jc_invM*h - JcDot_nu) + NullLambda*(h(7:end) - Mbs'/Mb*h(1:6) + u_0);
-    % use desired postural
+    % use desired frame pose for the hands, while for the feet we set
+    % vDot_l_sole=vDot_r_sole=0 in order to use the lower joints
+    vDot_l_hand     = [- K_task_space(1) * (w_H_l_hand(1:3,4) - w_H_l_hand_des(1:3,4) ); - K_task_space(2) * wbc.skewVee(w_H_l_hand(1:3,1:3)/w_H_l_hand_des(1:3,1:3))];
+    vDot_r_hand     = [- K_task_space(1) * (w_H_r_hand(1:3,4) - w_H_r_hand_des(1:3,4) ); - K_task_space(2) * wbc.skewVee(w_H_r_hand(1:3,1:3)/w_H_r_hand_des(1:3,1:3))];
+    vDot_star       = [zeros(12,1); vDot_l_hand; vDot_r_hand]; 
     
-    vdot_l_hand     = [- K_task_space(1) * (w_H_l_hand(1:3,4) - w_H_l_hand_des(1:3,4) ); - K_task_space(2) * wbc.skewVee(w_H_l_hand(1:3,1:3)/w_H_l_hand_des(1:3,1:3))];
-    vdot_r_hand     = [- K_task_space(1) * (w_H_r_hand(1:3,4) - w_H_r_hand_des(1:3,4) ); - K_task_space(2) * wbc.skewVee(w_H_r_hand(1:3,1:3)/w_H_r_hand_des(1:3,1:3))];
-    
-    vdot_star       = [zeros(12,1); vdot_l_hand; vdot_r_hand]; 
-    u_0             =  Ms * wbc.pinvDamped(J(:,7:end), Reg.pinvDamp) * (vdot_star - JDot_nu); 
+    u_0             =  Ms * wbc.pinvDamped(J(:,7:end), Reg.pinvDamp) * (vDot_star - JDot_nu); 
     tauModel        =  pinvLambda*(Jc_invM*h - JcDot_nu) + NullLambda*(h(7:end) - Mbs'/Mb*h(1:6) + u_0);
   
     %% QP parameters for two feet standing
     %
-    % In the case the robot stands on two feet, the control objective is 
-    % the minimization of the joint torques through the redundancy of the 
-    % contact forces. See Previous comments.
+    % The control objective is the minimization of the joint torques 
+    % through the redundancy of the contact forces. See Previous comments.
 
     % Get the inequality constraints matrices
+    w_R_r_sole                = w_H_r_sole(1:3,1:3);
+    w_R_l_sole                = w_H_l_sole(1:3,1:3);
+    ConstraintMatrixLeftFoot  = ConstraintsMatrix * blkdiag(w_R_l_sole', w_R_l_sole');
+    ConstraintMatrixRightFoot = ConstraintsMatrix * blkdiag(w_R_r_sole', w_R_r_sole');
     ConstraintsMatrixBothFeet  = blkdiag(ConstraintMatrixLeftFoot,ConstraintMatrixRightFoot);
     bVectorConstraintsBothFeet = [bVectorConstraints;bVectorConstraints];
     
